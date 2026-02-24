@@ -1,5 +1,6 @@
 # llm/payload_generator.py
 import json
+import re
 from llm.ollama_client import OllamaClient
 from llm.prompt_templates import PromptTemplates
 
@@ -12,16 +13,50 @@ class LLMPayloadGenerator:
         self.generated_payloads = []
 
     def _parse_json_response(self, response):
-        """Safely parse JSON from LLM response"""
+        """Safely parse JSON from LLM response - handles truncated/malformed responses"""
         try:
-            # Clean response - remove markdown code blocks if present
             clean = response.strip()
+
+            # Remove markdown code blocks if present
             if "```json" in clean:
                 clean = clean.split("```json")[1].split("```")[0].strip()
             elif "```" in clean:
                 clean = clean.split("```")[1].split("```")[0].strip()
-            return json.loads(clean)
-        except json.JSONDecodeError as e:
+
+            # --- Attempt 1: Full clean parse ---
+            try:
+                if "[" in clean:
+                    start = clean.index("[")
+                    end = clean.rindex("]") + 1
+                    return json.loads(clean[start:end])
+                elif "{" in clean:
+                    start = clean.index("{")
+                    end = clean.rindex("}") + 1
+                    return json.loads(clean[start:end])
+            except Exception:
+                pass
+
+            # --- Attempt 2: Extract individual JSON objects from partial response ---
+            objects = []
+            pattern = r'\{[^{}]*\}'
+            matches = re.findall(pattern, clean, re.DOTALL)
+            for match in matches:
+                try:
+                    fixed = match.replace("\\'", "'")
+                    fixed = re.sub(r'[\x00-\x1f\x7f]', '', fixed)
+                    obj = json.loads(fixed)
+                    objects.append(obj)
+                except Exception:
+                    continue
+
+            if objects:
+                return objects
+
+            print(f"[PAYLOAD] Warning: Could not parse JSON response")
+            print(f"[PAYLOAD] Raw response: {response[:200]}")
+            return None
+
+        except Exception as e:
             print(f"[PAYLOAD] Warning: Could not parse JSON response: {e}")
             print(f"[PAYLOAD] Raw response: {response[:200]}")
             return None

