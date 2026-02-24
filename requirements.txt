@@ -1,0 +1,11 @@
+ollama
+requests
+beautifulsoup4
+selenium
+sqlalchemy
+pandas
+jinja2
+reportlab
+matplotlib
+pyyaml
+python-nmap
