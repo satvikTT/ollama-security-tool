@@ -13,7 +13,12 @@ class LLMPayloadGenerator:
         self.generated_payloads = []
 
     def _parse_json_response(self, response):
-        """Safely parse JSON from LLM response - handles truncated/malformed responses"""
+        """Safely parse JSON from LLM response - handles None/truncated/malformed responses"""
+        # Guard against None response (e.g. Ollama not running)
+        if response is None:
+            print("[PAYLOAD] Warning: Received None response from LLM")
+            return None
+
         try:
             clean = response.strip()
 
@@ -36,7 +41,7 @@ class LLMPayloadGenerator:
             except Exception:
                 pass
 
-            # --- Attempt 2: Extract individual JSON objects from partial response ---
+            # --- Attempt 2: Extract individual JSON objects ---
             objects = []
             pattern = r'\{[^{}]*\}'
             matches = re.findall(pattern, clean, re.DOTALL)
