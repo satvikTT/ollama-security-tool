@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security Assessment Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f1f5f9; color: #1e293b; }
+
+  .header { background: linear-gradient(135deg, #1e293b, #334155);
+             color: white; padding: 40px; text-align: center; }
+  .header h1 { font-size: 2.2em; margin-bottom: 8px; }
+  .header p  { color: #94a3b8; font-size: 1em; }
+
+  .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+
+  .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr);
+                gap: 16px; margin-bottom: 30px; }
+  .meta-card { background: white; border-radius: 10px; padding: 20px;
+                text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .meta-card .num { font-size: 2em; font-weight: bold; }
+  .meta-card .label { color: #64748b; font-size: 0.85em; margin-top: 4px; }
+
+  .section-title { font-size: 1.3em; font-weight: bold; margin: 30px 0 15px;
+                    padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+
+  .severity-bar { display: grid; grid-template-columns: repeat(4,1fr);
+                   gap: 12px; margin-bottom: 30px; }
+  .sev-card { background: white; border-radius: 10px; padding: 16px;
+               text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .sev-card .sev-num { font-size: 2.5em; font-weight: bold; }
+  .sev-card .sev-label { font-size: 0.85em; color: #64748b; }
+
+  .finding { background: white; border-radius: 10px; margin-bottom: 16px;
+              padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .finding-header { display: flex; align-items: center; gap: 12px;
+                     margin-bottom: 14px; flex-wrap: wrap; }
+  .finding-num { background: #e2e8f0; color: #475569; border-radius: 50%;
+                  width: 28px; height: 28px; display: flex; align-items: center;
+                  justify-content: center; font-size: 0.8em; font-weight: bold; }
+  .finding-title { font-weight: bold; font-size: 1.05em; flex: 1; }
+  .badge { color: white; padding: 3px 12px; border-radius: 20px;
+            font-size: 0.8em; font-weight: bold; }
+  .cvss { background: #1e293b; color: white; padding: 3px 12px;
+           border-radius: 20px; font-size: 0.8em; }
+
+  .finding-row { margin-bottom: 8px; font-size: 0.92em; line-height: 1.5; }
+  .finding-row code { background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+                       font-size: 0.9em; word-break: break-all; }
+  .impact { background: #fff7ed; padding: 8px 12px; border-radius: 6px; }
+  .recommend { background: #f0fdf4; padding: 8px 12px; border-radius: 6px; }
+
+  .compliance-table { width: 100%; border-collapse: collapse; background: white;
+                       border-radius: 10px; overflow: hidden;
+                       box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .compliance-table th { background: #1e293b; color: white; padding: 12px 16px;
+                          text-align: left; font-size: 0.9em; }
+  .compliance-table td { padding: 11px 16px; border-bottom: 1px solid #e2e8f0;
+                          font-size: 0.88em; }
+  .compliance-table tr:hover td { background: #f8fafc; }
+
+  .footer { text-align: center; padding: 30px; color: #94a3b8; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔒 Security Assessment Report</h1>
+  <p>LLM-Orchestrated Web Vulnerability Assessment with GRC Integration</p>
+  <p style="margin-top:10px;">Generated: 2026-02-26 10:39:22 &nbsp;|&nbsp; Target: http://localhost/dvwa</p>
+</div>
+
+<div class="container">
+
+  <!-- Meta Cards -->
+  <div class="meta-grid" style="margin-top:30px;">
+    <div class="meta-card">
+      <div class="num" style="color:#3b82f6;">16</div>
+      <div class="label">Total Findings</div>
+    </div>
+    <div class="meta-card">
+      <div class="num" style="color:#dc2626;">5</div>
+      <div class="label">Critical</div>
+    </div>
+    <div class="meta-card">
+      <div class="num" style="color:#ea580c;">2</div>
+      <div class="label">High</div>
+    </div>
+    <div class="meta-card">
+      <div class="num" style="color:#6b7280;">368.33s</div>
+      <div class="label">Scan Duration</div>
+    </div>
+  </div>
+
+  <!-- Severity Breakdown -->
+  <div class="section-title">📊 Severity Breakdown</div>
+  <div class="severity-bar">
+    <div class="sev-card">
+      <div class="sev-num" style="color:#dc2626;">5</div>
+      <div class="sev-label">Critical</div>
+    </div>
+    <div class="sev-card">
+      <div class="sev-num" style="color:#ea580c;">2</div>
+      <div class="sev-label">High</div>
+    </div>
+    <div class="sev-card">
+      <div class="sev-num" style="color:#d97706;">7</div>
+      <div class="sev-label">Medium</div>
+    </div>
+    <div class="sev-card">
+      <div class="sev-num" style="color:#65a30d;">2</div>
+      <div class="sev-label">Low</div>
+    </div>
+  </div>
+
+  <!-- Findings -->
+  <div class="section-title">🔍 Vulnerability Findings</div>
+  
+            <div class="finding" style="border-left: 5px solid #ea580c; background: #fff7ed;">
+                <div class="finding-header">
+                    <span class="finding-num">#1</span>
+                    <span class="finding-title">XSS - Reflected</span>
+                    <span class="badge" style="background:#ea580c;">High</span>
+                    <span class="cvss">CVSS: 6.1</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa/vulnerabilities/xss_r/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code><script>alert(1)</script></code></div>
+                    <div class="finding-row"><b>Evidence:</b> Payload reflected in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> A reflected XSS vulnerability could allow an attacker to inject malicious scripts, potentially leading to data theft or system compromise.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement a web application firewall (WAF) rule to block referrered XSS attacks and regularly update the vulnerable code.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #dc2626; background: #fef2f2;">
+                <div class="finding-header">
+                    <span class="finding-num">#2</span>
+                    <span class="finding-title">SQL Injection - Error Based</span>
+                    <span class="badge" style="background:#dc2626;">Critical</span>
+                    <span class="cvss">CVSS: 9.8</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa/vulnerabilities/sqli/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>'</code></div>
+                    <div class="finding-row"><b>Evidence:</b> SQL error detected: 'you have an error in your sql syntax'</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> Unauthorized access to sensitive data and potential data tampering due to exploited SQL injection vulnerability.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement proper input validation, parameterized queries, or prepared statements to prevent SQL injection attacks.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #dc2626; background: #fef2f2;">
+                <div class="finding-header">
+                    <span class="finding-num">#3</span>
+                    <span class="finding-title">SQL Injection - Boolean Based</span>
+                    <span class="badge" style="background:#dc2626;">Critical</span>
+                    <span class="cvss">CVSS: 9.8</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa/vulnerabilities/sqli/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>1' OR '1'='1 vs 1' OR '1'='2</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Response length difference: 277 chars between TRUE/FALSE conditions</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> A successful SQL injection attack could lead to unauthorized access or data tampering in the DVWA application, compromising sensitive information.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Apply a prepared statement or parameterized query to prevent user input from being executed as SQL code.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #dc2626; background: #fef2f2;">
+                <div class="finding-header">
+                    <span class="finding-num">#4</span>
+                    <span class="finding-title">SQL Injection - Time Based Blind</span>
+                    <span class="badge" style="background:#dc2626;">Critical</span>
+                    <span class="cvss">CVSS: 9.8</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa/vulnerabilities/sqli/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>1' AND SLEEP(3)-- -</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Response delayed by 3.05s indicating SLEEP() executed</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> The delayed response and potential for session fixation or lateral movement indicate a high risk to the application’s security posture and potentially sensitive data.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Patch or deny access to prevent exploitation of this vulnerability.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #dc2626; background: #fef2f2;">
+                <div class="finding-header">
+                    <span class="finding-num">#5</span>
+                    <span class="finding-title">Command Injection - Direct</span>
+                    <span class="badge" style="background:#dc2626;">Critical</span>
+                    <span class="cvss">CVSS: 10.0</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa/vulnerabilities/exec/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>127.0.0.1 & dir</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Command output pattern detected: 'windows'</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could potentially execute arbitrary commands on the system, compromising its integrity and security. This vulnerability poses a significant risk to the organization's data and systems.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Immediately patch the vulnerability by validating user input and ensuring proper sanitization of command-line arguments.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #dc2626; background: #fef2f2;">
+                <div class="finding-header">
+                    <span class="finding-num">#6</span>
+                    <span class="finding-title">Command Injection - Time Based Blind</span>
+                    <span class="badge" style="background:#dc2626;">Critical</span>
+                    <span class="cvss">CVSS: 9.8</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa/vulnerabilities/exec/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>127.0.0.1 && sleep 3</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Response delayed by 3.13s — sleep/ping command executed</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> A successful exploitation of this vulnerability could allow an attacker to execute arbitrary system commands, potentially leading to unauthorized access or disruption of critical system services.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Apply a Content Security Policy (CSP) to restrict the execution of scripts and ensure that all input is sanitized against command injection attacks. Regularly update and patch vulnerable versions of software.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#7</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'X-Frame-Options' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could inject malicious frames to compromise the session token in DVWA.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement X-Frame-Options header with a value of &quot;SAMEORIGIN&quot; to prevent frame injection attacks.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#8</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'X-Content-Type-Options' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could use this vulnerability to bypass security restrictions such as Content Security Policy (CSP), potentially leading to a lateral movement within the application or even further into the network.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implementing the X-Content-Type-Options header with the "nosec" directive will prevent an attacker from bypassing CSP, reducing the attack surface and minimizing the risk of further exploitation.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#9</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'X-XSS-Protection' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> The missing X-XSS-Protection header could allow an attacker to bypass the protection against cross-site scripting (XSS) attacks on the dvwa application.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implementing the X-XSS-Protection header is not critical for this specific vulnerability, as it only provides a deterrent to XSS attacks.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#10</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'Strict-Transport-Security' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> The vulnerability allows an attacker to intercept sensitive data transmitted between the client and server. This could lead to eavesdropping and tampering of sensitive information.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement Strict-Transport-Security (HSTS) header in the application configuration.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#11</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'Content-Security-Policy' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could inject malicious scripts into the application, potentially leading to data theft or system compromise.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement a Content-Security-Policy header with a default-src directive to restrict the execution of inline scripts and stylesheets.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#12</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'Referrer-Policy' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could potentially use this vulnerability to bypass the Referrer-Policy header, allowing them to access sensitive information or perform malicious actions.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement a Referrer-Policy header in responses to prevent this vulnerability.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #d97706; background: #fffbeb;">
+                <div class="finding-header">
+                    <span class="finding-num">#13</span>
+                    <span class="finding-title">Missing Security Header</span>
+                    <span class="badge" style="background:#d97706;">Medium</span>
+                    <span class="cvss">CVSS: 5.3</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Header 'Permissions-Policy' not found in response</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could potentially enable malicious scripts to run on the vulnerable server, compromising sensitive data.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Implement a Content Security Policy (CSP) to restrict the execution of scripts on the server.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #ea580c; background: #fff7ed;">
+                <div class="finding-header">
+                    <span class="finding-num">#14</span>
+                    <span class="finding-title">Sensitive File Exposed</span>
+                    <span class="badge" style="background:#ea580c;">High</span>
+                    <span class="cvss">CVSS: 7.5</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/phpmyadmin/</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> HTTP 200 returned for sensitive path: /phpmyadmin/</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> Exposure of sensitive files can lead to data theft or unauthorized access. This could result in serious reputational damage and financial losses.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Immediately update the PHPMyAdmin installation to a newer version that includes a patch for this vulnerability or disable access to the phpmyadmin/ directory.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #65a30d; background: #f7fee7;">
+                <div class="finding-header">
+                    <span class="finding-num">#15</span>
+                    <span class="finding-title">Information Disclosure</span>
+                    <span class="badge" style="background:#65a30d;">Low</span>
+                    <span class="cvss">CVSS: 3.7</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Server reveals: Server = Apache/2.4.58 (Win64) OpenSSL/3.1.3 PHP/8.2.12</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker gaining access to sensitive information could lead to data breaches or identity theft.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Regularly update the PHP version to a more secure one and ensure all software is up-to-date.</div>
+                </div>
+            </div>
+            
+            <div class="finding" style="border-left: 5px solid #65a30d; background: #f7fee7;">
+                <div class="finding-header">
+                    <span class="finding-num">#16</span>
+                    <span class="finding-title">Information Disclosure</span>
+                    <span class="badge" style="background:#65a30d;">Low</span>
+                    <span class="cvss">CVSS: 3.7</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-row"><b>URL:</b> <code>http://localhost/dvwa</code></div>
+                    <div class="finding-row"><b>Payload/Detail:</b> <code>N/A</code></div>
+                    <div class="finding-row"><b>Evidence:</b> Server reveals: X-Powered-By = PHP/8.2.12</div>
+                    <div class="finding-row impact"><b>💼 Business Impact:</b> An attacker could potentially use this vulnerability to identify the version of PHP being used on the target system, which may aid in identifying additional vulnerabilities or exploiting them. This could lead to a compromise of sensitive data.</div>
+                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> Update PHP to the latest version (8.3.11 or later) and disable the X-Powered-By header.</div>
+                </div>
+            </div>
+            
+
+  <!-- Compliance Table -->
+  <div class="section-title">📋 Compliance Framework Mapping</div>
+  <table class="compliance-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Vulnerability</th>
+        <th>Severity</th>
+        <th>OWASP Top 10</th>
+        <th>ISO 27001</th>
+        <th>NIST CSF</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td>1</td>
+        <td>XSS - Reflected</td>
+        <td><span style="color:#ea580c;font-weight:bold;">High</span></td>
+        <td>A03:2021 - Injection</td>
+        <td>A.8.28 - Secure Coding</td>
+        <td>Protect > Platform Security</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>SQL Injection - Error Based</td>
+        <td><span style="color:#dc2626;font-weight:bold;">Critical</span></td>
+        <td>A03:2021 - Injection</td>
+        <td>A.8.28 - Secure Coding</td>
+        <td>Protect > Data Security</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>SQL Injection - Boolean Based</td>
+        <td><span style="color:#dc2626;font-weight:bold;">Critical</span></td>
+        <td>A03:2021 - Injection</td>
+        <td>A.8.28 - Secure Coding</td>
+        <td>Protect > Data Security</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>SQL Injection - Time Based Blind</td>
+        <td><span style="color:#dc2626;font-weight:bold;">Critical</span></td>
+        <td>A03:2021 - Injection</td>
+        <td>A.8.28 - Secure Coding</td>
+        <td>Protect > Data Security</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Command Injection - Direct</td>
+        <td><span style="color:#dc2626;font-weight:bold;">Critical</span></td>
+        <td>A03:2021 - Injection</td>
+        <td>A.8.28 - Secure Coding</td>
+        <td>Protect > Platform Security</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Command Injection - Time Based Blind</td>
+        <td><span style="color:#dc2626;font-weight:bold;">Critical</span></td>
+        <td>A03:2021 - Injection</td>
+        <td>A.8.28 - Secure Coding</td>
+        <td>Protect > Platform Security</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td>Missing Security Header</td>
+        <td><span style="color:#d97706;font-weight:bold;">Medium</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Protect > Configuration Management</td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td>Sensitive File Exposed</td>
+        <td><span style="color:#ea580c;font-weight:bold;">High</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.3 - Information Access Restriction</td>
+        <td>Protect > Access Control</td>
+      </tr>
+      <tr>
+        <td>15</td>
+        <td>Information Disclosure</td>
+        <td><span style="color:#65a30d;font-weight:bold;">Low</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Identify > Asset Management</td>
+      </tr>
+      <tr>
+        <td>16</td>
+        <td>Information Disclosure</td>
+        <td><span style="color:#65a30d;font-weight:bold;">Low</span></td>
+        <td>A05:2021 - Security Misconfiguration</td>
+        <td>A.8.9 - Configuration Management</td>
+        <td>Identify > Asset Management</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer" style="margin-top:40px;">
+    <p>Generated by LLM-Orchestrated Security Assessment Tool</p>
+    <p>⚠️ This report is for authorized security testing only. Handle with confidentiality.</p>
+  </div>
+
+</div>
+</body>
+</html>
