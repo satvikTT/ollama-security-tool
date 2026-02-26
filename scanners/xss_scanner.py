@@ -1,149 +1,109 @@
 # scanners/xss_scanner.py
 import requests
 from bs4 import BeautifulSoup
+from core.web_crawler import WebCrawler
 from llm.payload_generator import LLMPayloadGenerator
 from core.authorization import AuthorizationChecker
 
 class XSSScanner:
-    """LLM-powered XSS vulnerability scanner"""
+    DVWA_PATHS = ["/vulnerabilities/xss_r/", "/vulnerabilities/xss_s/"]
 
     def __init__(self, target_url, session=None):
-        self.target_url = target_url
+        self.target_url = target_url.rstrip("/")
         self.session = session or requests.Session()
         self.payload_gen = LLMPayloadGenerator()
         self.auth = AuthorizationChecker()
         self.findings = []
+        self.is_dvwa = "dvwa" in target_url.lower()
+        self._crawler = None
+        self._pre_crawled = False
+        self.session.headers.update({"User-Agent": "Mozilla/5.0 (Security Scanner - Authorized Testing)"})
 
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Security Scanner - Authorized Testing)"
-        })
+    def check_xss(self, response, payload):
+        return response and payload in response.text
 
-    def get_fresh_token(self, url):
-        """Fetch a fresh CSRF token from the page before each request"""
-        try:
-            response = self.session.get(url, timeout=10)
-            soup = BeautifulSoup(response.text, "html.parser")
-            token_input = soup.find("input", {"name": "user_token"})
-            if token_input:
-                return token_input["value"]
-        except Exception as e:
-            print(f"[XSS] Error fetching token: {e}")
-        return None
+    def _get_payloads(self):
+        print("[XSS] Generating payloads via LLM...")
+        llm = self.payload_gen.generate_xss_payloads(field_type="text", detected_filters="none", html_context="form", target_context="web app")
+        static = [
+            "<script>alert(1)</script>", "<img src=x onerror=alert(1)>",
+            "<svg onload=alert(1)>", "'\"><script>alert(1)</script>",
+            "<body onload=alert(1)>", "<script>alert('XSS')</script>",
+        ]
+        for p in llm:
+            if isinstance(p, dict) and p.get("payload"):
+                static.append(p["payload"])
+        return static
 
-    def get_forms(self, url):
-        """Extract all forms from a page"""
-        try:
-            response = self.session.get(url, timeout=10)
-            soup = BeautifulSoup(response.text, "html.parser")
-            return soup.find_all("form")
-        except Exception as e:
-            print(f"[XSS] Error fetching page: {e}")
-            return []
+    def _scan_dvwa(self):
+        print("[XSS] DVWA mode")
+        payloads = self._get_payloads()
+        for path in self.DVWA_PATHS:
+            url = self.target_url + path
+            for payload in payloads:
+                if not payload: continue
+                try:
+                    r = self.session.get(url, timeout=10)
+                    soup = BeautifulSoup(r.text, "html.parser")
+                    t = soup.find("input", {"name": "user_token"})
+                    token = t["value"] if t else ""
+                    result = self.session.get(url, params={"name": payload, "user_token": token}, timeout=10)
+                    if self.check_xss(result, payload):
+                        self.findings.append({"type": "XSS - Reflected", "url": url, "parameter": "name", "payload": payload, "severity": "High", "evidence": f"Payload reflected at {url}"})
+                        print(f"[XSS] ✅ VULNERABLE! {payload[:40]}")
+                        break
+                except Exception:
+                    continue
 
-    def get_form_details(self, form):
-        """Extract details from a form element"""
-        details = {
-            "action": form.attrs.get("action", "").lower(),
-            "method": form.attrs.get("method", "get").lower(),
-            "inputs": []
-        }
-        for input_tag in form.find_all(["input", "textarea"]):
-            details["inputs"].append({
-                "type": input_tag.attrs.get("type", "text"),
-                "name": input_tag.attrs.get("name", ""),
-                "value": input_tag.attrs.get("value", "")
-            })
-        return details
+    def _scan_generic(self):
+        print("[XSS] Generic mode")
+        if self._pre_crawled and self._crawler:
+            crawler = self._crawler
+            forms = crawler.forms_found
+            url_params = crawler.url_params_found
+        else:
+            crawler = WebCrawler(self.target_url, self.session, max_pages=15)
+            crawler.crawl()
+            forms = crawler.forms_found
+            url_params = crawler.url_params_found
 
-    def submit_with_payload(self, url, payload):
-        """
-        Fetch fresh page, grab fresh token, inject payload and submit.
-        This ensures a valid CSRF token is used every single time.
-        """
-        try:
-            # Always get a fresh page and fresh token
-            response = self.session.get(url, timeout=10)
-            soup = BeautifulSoup(response.text, "html.parser")
+        print(f"[XSS] {len(forms)} forms, {len(url_params)} URL param endpoints")
+        payloads = self._get_payloads()
 
-            # Get fresh token
-            token_input = soup.find("input", {"name": "user_token"})
-            token = token_input["value"] if token_input else ""
+        # Test forms
+        tested = set()
+        for form in forms:
+            action = form["action_url"]
+            if action in tested: continue
+            tested.add(action)
+            for payload in payloads:
+                if not payload: continue
+                r = crawler.submit_form(form, payload)
+                if self.check_xss(r, payload):
+                    self.findings.append({"type": "XSS - Reflected", "url": action, "parameter": "form", "payload": payload, "severity": "High", "evidence": f"Payload reflected at {action}"})
+                    print(f"[XSS] ✅ VULNERABLE (form)! {payload[:40]}")
+                    break
 
-            # Build params with payload + fresh token
-            params = {
-                "name": payload,
-                "user_token": token
-            }
-
-            # Submit via GET (DVWA XSS reflected uses GET)
-            result = self.session.get(url, params=params, timeout=10)
-            return result
-
-        except Exception as e:
-            print(f"[XSS] Error during submission: {e}")
-            return None
-
-    def check_xss_in_response(self, response, payload):
-        """Check if payload is reflected in the response"""
-        if response and payload in response.text:
-            return True
-        return False
+        # Test URL params
+        tested_bases = set()
+        for up in url_params:
+            base = up["base_url"]
+            if base in tested_bases: continue
+            tested_bases.add(base)
+            for param_name in up["params"]:
+                for payload in payloads:
+                    if not payload: continue
+                    r = crawler.test_url_param(up, payload, param_name)
+                    if self.check_xss(r, payload):
+                        self.findings.append({"type": "XSS - Reflected", "url": base, "parameter": param_name, "payload": payload, "severity": "High", "evidence": f"Payload reflected via URL param '{param_name}'"})
+                        print(f"[XSS] ✅ VULNERABLE (URL param: {param_name})!")
+                        break
 
     def scan(self):
-        """Main scan method"""
-
         if not self.auth.check_authorization(self.target_url):
-            print("[XSS] ❌ Scan aborted - Target not authorized!")
-            return []
-
-        print(f"\n[XSS] 🔍 Starting XSS scan on: {self.target_url}")
-
-        # Generate LLM payloads
-        print("[XSS] Generating XSS payloads using LLM...")
-        llm_payloads = self.payload_gen.generate_xss_payloads(
-            field_type="text input",
-            detected_filters="none",
-            html_context="web form",
-            target_context="DVWA low security"
-        )
-
-        # Static reliable payloads
-        static_payloads = [
-            "<script>alert(1)</script>",
-            "<img src=x onerror=alert(1)>",
-            "<svg onload=alert(1)>",
-            "'\"><script>alert(1)</script>",
-            "<body onload=alert(1)>",
-        ]
-
-        all_payloads = static_payloads.copy()
-        for p in llm_payloads:
-            if isinstance(p, dict):
-                all_payloads.append(p.get("payload", ""))
-
-        print(f"[XSS] Testing {len(all_payloads)} payloads against target...")
-
-        for payload in all_payloads:
-            if not payload:
-                continue
-
-            # Fresh token fetch + submit for every single payload
-            response = self.submit_with_payload(self.target_url, payload)
-
-            if self.check_xss_in_response(response, payload):
-                finding = {
-                    "type": "XSS - Reflected",
-                    "url": self.target_url,
-                    "payload": payload,
-                    "severity": "High",
-                    "evidence": "Payload reflected in response"
-                }
-                self.findings.append(finding)
-                print(f"[XSS] ✅ VULNERABLE! Payload worked: {payload[:60]}")
-                break  # Found one - enough to confirm vulnerability
-
-        if not self.findings:
-            print("[XSS] No XSS vulnerability detected with tested payloads.")
-
-        print(f"\n[XSS] Scan complete. Found {len(self.findings)} vulnerability/vulnerabilities.")
+            print("[XSS] ❌ Unauthorized!"); return []
+        print(f"\n[XSS] 🔍 Scanning: {self.target_url}")
+        if self.is_dvwa: self._scan_dvwa()
+        else: self._scan_generic()
+        print(f"\n[XSS] Done. Found {len(self.findings)} finding(s).")
         return self.findings

@@ -9,14 +9,20 @@ class AuthorizationChecker:
     """
 
     SAFE_LAB_HOSTS = [
-        "localhost",
-        "127.0.0.1",
-        "dvwa",
-        "webgoat",
-        "bwapp",
-        "0.0.0.0"
+    "localhost",
+    "127.0.0.1",
+    "dvwa",
+    "webgoat",
+    "bwapp",
+    "testphp.vulnweb.com",
+    "demo.testfire.net",   
+    "www.webscantest.com", 
+    "vulnerablewebapp.com",
+    "testasp.vulnweb.com",
+    "testphp.vulnweb.com",
+    "testfire.net",       
+    "testphp.vulnweb.com",       
     ]
-
     def __init__(self):
         self.authorized_targets = []
         self.scan_log = []
