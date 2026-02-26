@@ -1,0 +1,55 @@
+{
+  "framework": "NIST Cybersecurity Framework 2.0",
+  "version": "2.0",
+  "mappings": {
+    "XSS": {
+      "function": "Protect",
+      "category_id": "PR.PS-04",
+      "category_name": "Platform Security",
+      "description": "XSS vulnerabilities indicate failure in application security controls",
+      "subcategory": "Software platforms are inventoried and secured"
+    },
+    "SQL Injection": {
+      "function": "Protect",
+      "category_id": "PR.DS-02",
+      "category_name": "Data Security",
+      "description": "SQL injection can lead to unauthorized data access and exfiltration",
+      "subcategory": "Data in transit and at rest are protected from unauthorized access"
+    },
+    "Command Injection": {
+      "function": "Protect",
+      "category_id": "PR.PS-04",
+      "category_name": "Platform Security",
+      "description": "Command injection allows complete system compromise",
+      "subcategory": "Log records are generated and made available for monitoring"
+    },
+    "Missing Security Header": {
+      "function": "Protect",
+      "category_id": "PR.PS-01",
+      "category_name": "Configuration Management",
+      "description": "Missing headers indicate gaps in configuration baseline",
+      "subcategory": "Configuration management practices are established and maintained"
+    },
+    "Sensitive File Exposed": {
+      "function": "Protect",
+      "category_id": "PR.AA-05",
+      "category_name": "Access Control",
+      "description": "Exposed files indicate access control failures",
+      "subcategory": "Access permissions and authorizations are managed"
+    },
+    "Information Disclosure": {
+      "function": "Identify",
+      "category_id": "ID.AM-02",
+      "category_name": "Asset Management",
+      "description": "Disclosed server info aids attackers in asset enumeration",
+      "subcategory": "Software platforms and applications are inventoried"
+    },
+    "Directory Listing Enabled": {
+      "function": "Protect",
+      "category_id": "PR.PS-01",
+      "category_name": "Configuration Management",
+      "description": "Directory listing indicates misconfigured web server",
+      "subcategory": "Configuration management practices are established and maintained"
+    }
+  }
+}

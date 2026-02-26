@@ -1,0 +1,55 @@
+{
+  "framework": "OWASP Top 10 2021",
+  "version": "2021",
+  "mappings": {
+    "XSS": {
+      "id": "A03:2021",
+      "name": "Injection",
+      "description": "Cross-site scripting falls under injection category",
+      "risk_rating": "High",
+      "url": "https://owasp.org/Top10/A03_2021-Injection/"
+    },
+    "SQL Injection": {
+      "id": "A03:2021",
+      "name": "Injection",
+      "description": "SQL Injection is a critical injection vulnerability",
+      "risk_rating": "Critical",
+      "url": "https://owasp.org/Top10/A03_2021-Injection/"
+    },
+    "Command Injection": {
+      "id": "A03:2021",
+      "name": "Injection",
+      "description": "OS command injection allows arbitrary command execution",
+      "risk_rating": "Critical",
+      "url": "https://owasp.org/Top10/A03_2021-Injection/"
+    },
+    "Missing Security Header": {
+      "id": "A05:2021",
+      "name": "Security Misconfiguration",
+      "description": "Missing security headers indicate misconfiguration",
+      "risk_rating": "Medium",
+      "url": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+    },
+    "Sensitive File Exposed": {
+      "id": "A05:2021",
+      "name": "Security Misconfiguration",
+      "description": "Exposed sensitive files indicate misconfiguration",
+      "risk_rating": "High",
+      "url": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+    },
+    "Information Disclosure": {
+      "id": "A05:2021",
+      "name": "Security Misconfiguration",
+      "description": "Server information disclosure aids attackers",
+      "risk_rating": "Low",
+      "url": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+    },
+    "Directory Listing Enabled": {
+      "id": "A05:2021",
+      "name": "Security Misconfiguration",
+      "description": "Directory listing exposes file structure",
+      "risk_rating": "Medium",
+      "url": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "framework": "ISO/IEC 27001:2022",
+  "version": "2022",
+  "mappings": {
+    "XSS": {
+      "control_id": "A.8.28",
+      "control_name": "Secure Coding",
+      "domain": "Technological Controls",
+      "description": "XSS indicates lack of secure coding practices and input validation",
+      "requirement": "Organizations shall apply secure coding principles to software development"
+    },
+    "SQL Injection": {
+      "control_id": "A.8.28",
+      "control_name": "Secure Coding",
+      "domain": "Technological Controls",
+      "description": "SQL injection indicates lack of input sanitization in code",
+      "requirement": "Input validation and parameterized queries must be enforced"
+    },
+    "Command Injection": {
+      "control_id": "A.8.28",
+      "control_name": "Secure Coding",
+      "domain": "Technological Controls",
+      "description": "Command injection indicates critical secure coding failure",
+      "requirement": "OS command calls must be avoided or strictly validated"
+    },
+    "Missing Security Header": {
+      "control_id": "A.8.9",
+      "control_name": "Configuration Management",
+      "domain": "Technological Controls",
+      "description": "Missing headers indicate improper security configuration",
+      "requirement": "Security configurations must be established and maintained"
+    },
+    "Sensitive File Exposed": {
+      "control_id": "A.8.3",
+      "control_name": "Information Access Restriction",
+      "domain": "Technological Controls",
+      "description": "Exposed files violate access restriction controls",
+      "requirement": "Access to information must be restricted per access control policy"
+    },
+    "Information Disclosure": {
+      "control_id": "A.8.9",
+      "control_name": "Configuration Management",
+      "domain": "Technological Controls",
+      "description": "Server info disclosure indicates misconfiguration",
+      "requirement": "Systems must be hardened to prevent unnecessary information disclosure"
+    },
+    "Directory Listing Enabled": {
+      "control_id": "A.8.9",
+      "control_name": "Configuration Management",
+      "domain": "Technological Controls",
+      "description": "Directory listing exposes internal file structure",
+      "requirement": "Web servers must be configured to disable directory browsing"
+    }
+  }
+}
