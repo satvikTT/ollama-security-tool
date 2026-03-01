@@ -33,6 +33,7 @@ class Vulnerability(Base):
     payload         = Column(Text, nullable=True)
     severity        = Column(String(50), nullable=False)
     cvss_score      = Column(Float, nullable=True)
+    cvss_vector     = Column(String(120), nullable=True)
     evidence        = Column(Text, nullable=True)
     business_impact = Column(Text, nullable=True)
     recommendation  = Column(Text, nullable=True)
