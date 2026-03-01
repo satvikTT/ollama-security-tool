@@ -4,10 +4,10 @@ from bs4 import BeautifulSoup
 from core.web_crawler import WebCrawler
 from llm.payload_generator import LLMPayloadGenerator
 from core.authorization import AuthorizationChecker
-
+from core.stealth import stealth
 class CMDiScanner:
     DVWA_PATHS = ["/vulnerabilities/exec/"]
-
+    
     def __init__(self, target_url, session=None):
         self.target_url = target_url.rstrip("/")
         self.session = session or requests.Session()
@@ -25,6 +25,7 @@ class CMDiScanner:
 
     def get_token(self, url):
         try:
+            stealth.wait()
             r = self.session.get(url, timeout=10)
             soup = BeautifulSoup(r.text, "html.parser")
             t = soup.find("input", {"name": "user_token"})
@@ -46,6 +47,7 @@ class CMDiScanner:
             url = self.target_url + path
             for payload in dvwa_direct:
                 token = self.get_token(url)
+                stealth.wait()
                 r = self.session.post(url, data={"ip": payload, "Submit": "Submit", "user_token": token}, timeout=15)
                 vuln, pattern = self.check_output(r)
                 if vuln:
@@ -55,6 +57,7 @@ class CMDiScanner:
             for payload in dvwa_time:
                 token = self.get_token(url)
                 start = time.time()
+                stealth.wait()
                 self.session.post(url, data={"ip": payload, "Submit": "Submit", "user_token": token}, timeout=15)
                 if time.time() - start >= 3:
                     self.findings.append({"type": "Command Injection - Time Based Blind", "url": url, "parameter": "ip", "payload": payload, "severity": "Critical", "evidence": f"Delayed {round(time.time()-start,2)}s"})

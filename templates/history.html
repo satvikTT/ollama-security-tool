@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan History — LLM Security Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green:  #00ff88;
+    --cyan:   #00e5ff;
+    --red:    #ff2d55;
+    --orange: #ff9500;
+    --yellow: #ffd60a;
+    --bg:     #020d0a;
+    --bg2:    #041410;
+    --bg3:    #061a15;
+    --panel:  #071f19;
+    --b1:     #0a3528;
+    --b2:     #0f4a38;
+    --tx:     #a0f0d0;
+    --tx2:    #5a9980;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Rajdhani', sans-serif; background: var(--bg); color: var(--tx); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,136,0.012) 2px, rgba(0,255,136,0.012) 4px);
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--bg2); border-bottom: 1px solid var(--b2);
+    padding: 0 28px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .header::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), var(--cyan), var(--green), transparent);
+    opacity: 0.5;
+  }
+  .header-logo {
+    font-family: 'Orbitron', monospace; font-size: 1.1em; font-weight: 900;
+    color: var(--green); text-shadow: 0 0 18px rgba(0,255,136,0.35);
+    letter-spacing: 0.12em; text-decoration: none;
+  }
+  .nav { display: flex; gap: 10px; align-items: center; }
+  .nav-btn {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.72em; letter-spacing: .1em;
+    color: var(--tx2); border: 1px solid var(--b2); padding: 5px 16px;
+    text-decoration: none; transition: all .2s;
+  }
+  .nav-btn:hover { color: var(--green); border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.15); }
+  .nav-btn.active { color: var(--cyan); border-color: var(--cyan); }
+
+  /* WRAP */
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  /* SECTION LABEL */
+  .sec-label {
+    font-family: 'Orbitron', monospace; font-size: 0.72em; font-weight: 700;
+    color: var(--green); letter-spacing: .22em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+  }
+  .sec-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--b2), transparent); }
+
+  /* SUMMARY CARDS */
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--b2);
+    padding: 20px 16px 16px; text-align: center; position: relative; overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .card:nth-child(1)::before { background: var(--cyan); }
+  .card:nth-child(2)::before { background: var(--green); }
+  .card:nth-child(3)::before { background: var(--orange); }
+  .card:nth-child(4)::before { background: var(--red); }
+  .card-num { font-family: 'Orbitron', monospace; font-size: 2.4em; font-weight: 900; line-height: 1; margin-bottom: 6px; }
+  .card-label { font-family: 'Share Tech Mono', monospace; font-size: 0.68em; color: var(--tx2); letter-spacing: .12em; }
+
+  /* FILTER BAR */
+  .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .flabel { font-family: 'Share Tech Mono', monospace; font-size: 0.7em; color: var(--tx2); letter-spacing: .1em; white-space: nowrap; }
+  .finput {
+    background: var(--bg3); border: 1px solid var(--b2); color: var(--green);
+    padding: 8px 14px; font-family: 'Share Tech Mono', monospace; font-size: 0.84em;
+    outline: none; flex: 1; min-width: 200px; caret-color: var(--green);
+    letter-spacing: .04em; transition: border-color .2s;
+  }
+  .finput:focus { border-color: var(--green); box-shadow: 0 0 8px rgba(0,255,136,0.1); }
+  .finput::placeholder { color: var(--tx2); opacity: .45; }
+  .fselect {
+    background: var(--bg3); border: 1px solid var(--b2); color: var(--tx2);
+    padding: 8px 12px; font-family: 'Share Tech Mono', monospace; font-size: 0.8em;
+    outline: none; cursor: pointer; transition: border-color .2s;
+  }
+  .fselect:focus { border-color: var(--green); }
+
+  /* TABLE */
+  .tbl-wrap { border: 1px solid var(--b2); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  thead tr { background: var(--bg2); }
+  th {
+    font-family: 'Orbitron', monospace; font-size: 0.62em; font-weight: 700;
+    color: var(--green); letter-spacing: .14em; padding: 12px 16px;
+    text-align: left; border-bottom: 1px solid var(--b2); white-space: nowrap;
+  }
+  td { padding: 13px 16px; border-bottom: 1px solid var(--b1); font-size: 0.93em; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: rgba(0,255,136,0.013); }
+  tbody tr:hover td { background: rgba(0,229,255,0.045); }
+
+  .c-id { font-family: 'Share Tech Mono', monospace; font-size: 0.8em; color: var(--tx2); width: 55px; }
+  .c-target { font-family: 'Share Tech Mono', monospace; font-size: 0.83em; color: var(--cyan); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-date { font-family: 'Share Tech Mono', monospace; font-size: 0.76em; color: var(--tx2); white-space: nowrap; }
+  .c-date .time { color: #3a6650; display: block; }
+  .c-dur { font-family: 'Share Tech Mono', monospace; font-size: 0.8em; color: var(--tx2); text-align: center; }
+  .c-count { font-family: 'Orbitron', monospace; font-size: 1em; font-weight: 700; color: var(--cyan); text-align: center; }
+  .c-count.zero { color: var(--tx2); font-weight: 400; }
+
+  /* SEVERITY BADGES */
+  .sev-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .sev-badge { font-family: 'Share Tech Mono', monospace; font-size: 0.7em; padding: 2px 8px; border: 1px solid; border-radius: 1px; white-space: nowrap; }
+  .sev-badge.cr { color: var(--red);    border-color: rgba(255,45,85,.4);  background: rgba(255,45,85,.06); }
+  .sev-badge.hi { color: var(--orange); border-color: rgba(255,149,0,.4); background: rgba(255,149,0,.06); }
+  .sev-badge.me { color: var(--yellow); border-color: rgba(255,214,10,.4); background: rgba(255,214,10,.06); }
+  .sev-badge.lo { color: var(--green);  border-color: rgba(0,255,136,.3);  background: rgba(0,255,136,.05); }
+
+  /* STATUS */
+  .status { font-family: 'Share Tech Mono', monospace; font-size: 0.68em; letter-spacing: .09em; padding: 3px 10px; border: 1px solid; border-radius: 1px; white-space: nowrap; }
+  .status.completed { color: var(--green);  border-color: rgba(0,255,136,.5); }
+  .status.running   { color: var(--yellow); border-color: rgba(255,214,10,.5); }
+  .status.failed    { color: var(--red);    border-color: rgba(255,45,85,.5); }
+
+  /* ACTIONS */
+  .actions { display: flex; gap: 7px; justify-content: flex-end; }
+  .act {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.68em; letter-spacing: .07em;
+    color: var(--tx2); border: 1px solid var(--b2); padding: 4px 12px;
+    background: transparent; cursor: pointer; text-decoration: none; transition: all .2s; white-space: nowrap;
+  }
+  .act:hover { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,229,255,.15); }
+  .act.pdf:hover { color: var(--orange); border-color: var(--orange); box-shadow: 0 0 8px rgba(255,149,0,.15); }
+  .act.noreport { opacity: .3; cursor: default; pointer-events: none; }
+
+  /* EMPTY STATE */
+  .empty { border: 1px solid var(--b2); padding: 70px 20px; text-align: center; }
+  .empty-icon { font-size: 2.2em; margin-bottom: 18px; opacity: .5; }
+  .empty-msg { font-family: 'Share Tech Mono', monospace; color: var(--tx2); letter-spacing: .1em; font-size: 0.88em; }
+  .empty-link {
+    display: inline-block; margin-top: 16px; font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8em; color: var(--green); text-decoration: none;
+    border: 1px solid var(--green); padding: 6px 20px; transition: all .2s;
+  }
+  .empty-link:hover { background: rgba(0,255,136,.08); box-shadow: 0 0 12px rgba(0,255,136,.15); }
+
+  /* NO RESULTS */
+  .no-results {
+    display: none; padding: 30px; text-align: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.82em;
+    color: var(--tx2); letter-spacing: .09em;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="header-logo" href="/">◈ LLM SECURITY TOOL</a>
+  <nav class="nav">
+    <a href="/" class="nav-btn">// SCANNER</a>
+    <a href="/history" class="nav-btn active">// HISTORY</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <div class="sec-label" style="margin-top:24px;">// OVERVIEW</div>
+  <div class="summary">
+    <div class="card">
+      <div class="card-num" style="color:var(--cyan);">{{ total_scans }}</div>
+      <div class="card-label">TOTAL SCANS</div>
+    </div>
+    <div class="card">
+      <div class="card-num" style="color:var(--green);">{{ completed_scans }}</div>
+      <div class="card-label">COMPLETED</div>
+    </div>
+    <div class="card">
+      <div class="card-num" style="color:var(--orange);">{{ total_findings }}</div>
+      <div class="card-label">TOTAL FINDINGS</div>
+    </div>
+    <div class="card">
+      <div class="card-num" style="color:var(--red);">{{ critical_total }}</div>
+      <div class="card-label">CRITICAL FOUND</div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <span class="flabel">// FILTER:</span>
+    <input class="finput" id="searchInput" type="text" placeholder="search by target url..." oninput="applyFilters()" />
+    <select class="fselect" id="statusFilter" onchange="applyFilters()">
+      <option value="">ALL STATUS</option>
+      <option value="completed">COMPLETED</option>
+      <option value="running">RUNNING</option>
+    </select>
+    <select class="fselect" id="sortFilter" onchange="applySort()">
+      <option value="newest">NEWEST FIRST</option>
+      <option value="oldest">OLDEST FIRST</option>
+      <option value="most">MOST FINDINGS</option>
+      <option value="least">FEWEST FINDINGS</option>
+    </select>
+  </div>
+
+  <div class="sec-label">// SCAN SESSIONS</div>
+
+  {% if sessions %}
+  <div class="tbl-wrap">
+    <table id="histTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>TARGET</th>
+          <th>DATE / TIME</th>
+          <th style="text-align:center;">DURATION</th>
+          <th style="text-align:center;">FINDINGS</th>
+          <th>SEVERITY BREAKDOWN</th>
+          <th>STATUS</th>
+          <th style="text-align:right;">REPORT</th>
+        </tr>
+      </thead>
+      <tbody id="histBody">
+        {% for s in sessions %}
+        <tr
+          data-target="{{ s.target_url | lower }}"
+          data-status="{{ s.status }}"
+          data-findings="{{ s.total_findings }}"
+          data-date="{{ s.scan_date.isoformat() if s.scan_date else '' }}"
+        >
+          <td class="c-id">#{{ s.id }}</td>
+
+          <td><span class="c-target" title="{{ s.target_url }}">{{ s.target_url }}</span></td>
+
+          <td class="c-date">
+            {% if s.scan_date %}
+              {{ s.scan_date.strftime('%Y-%m-%d') }}
+              <span class="time">{{ s.scan_date.strftime('%H:%M:%S') }}</span>
+            {% else %}—{% endif %}
+          </td>
+
+          <td class="c-dur">
+            {% if s.duration_seconds %}{{ "%.1f"|format(s.duration_seconds) }}s{% else %}—{% endif %}
+          </td>
+
+          <td class="c-count {% if s.total_findings == 0 %}zero{% endif %}">
+            {{ s.total_findings }}
+          </td>
+
+          <td>
+            <div class="sev-row">
+              {% set sev = s.severity_breakdown %}
+              {% if sev.Critical > 0 %}<span class="sev-badge cr">{{ sev.Critical }} CRIT</span>{% endif %}
+              {% if sev.High > 0 %}<span class="sev-badge hi">{{ sev.High }} HIGH</span>{% endif %}
+              {% if sev.Medium > 0 %}<span class="sev-badge me">{{ sev.Medium }} MED</span>{% endif %}
+              {% if sev.Low > 0 %}<span class="sev-badge lo">{{ sev.Low }} LOW</span>{% endif %}
+              {% if sev.Critical == 0 and sev.High == 0 and sev.Medium == 0 and sev.Low == 0 %}
+                <span style="font-family:'Share Tech Mono',monospace;font-size:.75em;color:var(--tx2);">—</span>
+              {% endif %}
+            </div>
+          </td>
+
+          <td><span class="status {{ s.status }}">{{ s.status | upper }}</span></td>
+
+          <td>
+            <div class="actions">
+              {% if s.report_exists %}
+                <a href="/download_report/{{ s.id }}" class="act" target="_blank">// VIEW</a>
+                <a href="/download_pdf/{{ s.id }}" class="act pdf">// PDF</a>
+              {% else %}
+                <span class="act noreport">// NO REPORT</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="no-results" id="noResults">// NO SESSIONS MATCH YOUR FILTER</div>
+  </div>
+
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">◈</div>
+    <div class="empty-msg">// NO SCAN SESSIONS IN DATABASE YET</div>
+    <a href="/" class="empty-link">← RUN YOUR FIRST SCAN</a>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  function applyFilters() {
+    const search = document.getElementById("searchInput").value.toLowerCase().trim();
+    const status = document.getElementById("statusFilter").value;
+    const rows   = document.querySelectorAll("#histBody tr");
+    let visible  = 0;
+
+    rows.forEach(row => {
+      const ok = (!search || row.dataset.target.includes(search))
+              && (!status || row.dataset.status === status);
+      row.style.display = ok ? "" : "none";
+      if (ok) visible++;
+    });
+
+    document.getElementById("noResults").style.display = visible === 0 ? "block" : "none";
+  }
+
+  function applySort() {
+    const mode  = document.getElementById("sortFilter").value;
+    const tbody = document.getElementById("histBody");
+    const rows  = Array.from(tbody.querySelectorAll("tr"));
+
+    rows.sort((a, b) => {
+      if (mode === "newest") return (b.dataset.date || "") > (a.dataset.date || "") ? 1 : -1;
+      if (mode === "oldest") return (a.dataset.date || "") > (b.dataset.date || "") ? 1 : -1;
+      if (mode === "most")   return parseInt(b.dataset.findings || 0) - parseInt(a.dataset.findings || 0);
+      if (mode === "least")  return parseInt(a.dataset.findings || 0) - parseInt(b.dataset.findings || 0);
+      return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+    applyFilters();
+  }
+</script>
+
+</body>
+</html>

@@ -7,19 +7,56 @@ import re
 class RiskAssessor:
     """Calculates CVSS scores and assesses business risk using LLM"""
 
-    # Base CVSS scores per vulnerability type
-    CVSS_BASE_SCORES = {
-        "XSS - Reflected":                      {"score": 6.1, "severity": "Medium"},
-        "XSS - Stored":                          {"score": 8.8, "severity": "High"},
-        "SQL Injection - Error Based":           {"score": 9.8, "severity": "Critical"},
-        "SQL Injection - Boolean Based":         {"score": 9.8, "severity": "Critical"},
-        "SQL Injection - Time Based Blind":      {"score": 9.8, "severity": "Critical"},
-        "Command Injection - Direct":            {"score": 10.0, "severity": "Critical"},
-        "Command Injection - Time Based Blind":  {"score": 9.8, "severity": "Critical"},
-        "Missing Security Header":               {"score": 5.3, "severity": "Medium"},
-        "Sensitive File Exposed":                {"score": 7.5, "severity": "High"},
-        "Information Disclosure":               {"score": 3.7, "severity": "Low"},
-        "Directory Listing Enabled":             {"score": 5.3, "severity": "Medium"},
+    # CVSS v3.1 data per vulnerability type
+    # Vector format: CVSS:3.1/AV:{av}/AC:{ac}/PR:{pr}/UI:{ui}/S:{s}/C:{c}/I:{i}/A:{a}
+    # AV=Attack Vector  AC=Attack Complexity  PR=Privileges Required  UI=User Interaction
+    # S=Scope  C=Confidentiality  I=Integrity  A=Availability
+    # Values: N=None/Network  L=Low/Local  H=High  A=Adjacent  P=Physical  R=Required  C=Changed  U=Unchanged
+    CVSS_DATA = {
+        "XSS - Reflected": {
+            "score": 6.1, "severity": "Medium",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        },
+        "XSS - Stored": {
+            "score": 8.8, "severity": "High",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:N"
+        },
+        "SQL Injection - Error Based": {
+            "score": 9.8, "severity": "Critical",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        "SQL Injection - Boolean Based": {
+            "score": 9.8, "severity": "Critical",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        "SQL Injection - Time Based Blind": {
+            "score": 8.1, "severity": "High",
+            "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        "Command Injection - Direct": {
+            "score": 10.0, "severity": "Critical",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+        },
+        "Command Injection - Time Based Blind": {
+            "score": 9.0, "severity": "Critical",
+            "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H"
+        },
+        "Missing Security Header": {
+            "score": 5.3, "severity": "Medium",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+        },
+        "Sensitive File Exposed": {
+            "score": 7.5, "severity": "High",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+        },
+        "Information Disclosure": {
+            "score": 3.7, "severity": "Low",
+            "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N"
+        },
+        "Directory Listing Enabled": {
+            "score": 5.3, "severity": "Medium",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+        },
     }
 
     def __init__(self):
@@ -27,11 +64,11 @@ class RiskAssessor:
         self.templates = PromptTemplates()
 
     def get_cvss_score(self, vuln_type):
-        """Get base CVSS score for vulnerability type"""
-        for key, value in self.CVSS_BASE_SCORES.items():
+        """Get CVSS data (score, severity, vector) for vulnerability type"""
+        for key, value in self.CVSS_DATA.items():
             if key.lower() in vuln_type.lower() or vuln_type.lower() in key.lower():
                 return value
-        return {"score": 5.0, "severity": "Medium"}
+        return {"score": 5.0, "severity": "Medium", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"}
 
     def assess_business_risk(self, finding):
         """Use LLM to assess business impact of a finding"""
@@ -67,6 +104,7 @@ class RiskAssessor:
         cvss = self.get_cvss_score(finding.get("type", ""))
         return {
             "cvss_score": cvss["score"],
+            "cvss_vector": cvss["vector"],
             "severity": cvss["severity"],
             "business_impact": "This vulnerability could lead to unauthorized access or data exposure.",
             "recommendation": "Apply patches and follow OWASP remediation guidelines immediately."
@@ -76,20 +114,21 @@ class RiskAssessor:
         """Full risk assessment for a single finding"""
         print(f"[GRC] Assessing risk for: {finding.get('type')}...")
 
-        # Get CVSS score
+        # Get CVSS data (score + vector)
         cvss = self.get_cvss_score(finding.get("type", ""))
 
         # Get LLM business risk assessment
         llm_assessment = self.assess_business_risk(finding)
 
         return {
-            "type": finding.get("type"),
-            "url": finding.get("url"),
-            "cvss_score": cvss["score"],
-            "severity": cvss["severity"],
+            "type":          finding.get("type"),
+            "url":           finding.get("url"),
+            "cvss_score":    cvss["score"],
+            "cvss_vector":   cvss["vector"],
+            "severity":      cvss["severity"],
             "business_impact": llm_assessment.get("business_impact", "N/A"),
-            "recommendation": llm_assessment.get("recommendation", "N/A"),
-            "payload": finding.get("payload", finding.get("detail", "N/A")),
+            "recommendation":  llm_assessment.get("recommendation", "N/A"),
+            "payload":  finding.get("payload", finding.get("detail", "N/A")),
             "evidence": finding.get("evidence", "N/A")
         }
 

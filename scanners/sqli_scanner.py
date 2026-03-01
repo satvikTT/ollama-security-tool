@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from core.web_crawler import WebCrawler
 from llm.payload_generator import LLMPayloadGenerator
 from core.authorization import AuthorizationChecker
+from core.stealth import stealth
 
 class SQLiScanner:
     DVWA_PATHS = ["/vulnerabilities/sqli/", "/vulnerabilities/sqli_blind/"]
@@ -34,6 +35,7 @@ class SQLiScanner:
 
     def get_token(self, url):
         try:
+            stealth.wait()
             r = self.session.get(url, timeout=10)
             soup = BeautifulSoup(r.text, "html.parser")
             t = soup.find("input", {"name": "user_token"})
@@ -48,6 +50,7 @@ class SQLiScanner:
             # Error-based
             for payload in error_payloads:
                 token = self.get_token(url)
+                stealth.wait()
                 r = self.session.get(url, params={"id": payload, "Submit": "Submit", "user_token": token}, timeout=10)
                 err = self.check_error(r)
                 if err:
@@ -56,8 +59,10 @@ class SQLiScanner:
                     break
             # Boolean-based
             t1 = self.get_token(url)
+            stealth.wait()
             r1 = self.session.get(url, params={"id": "1' OR '1'='1", "Submit": "Submit", "user_token": t1}, timeout=10)
             t2 = self.get_token(url)
+            stealth.wait()
             r2 = self.session.get(url, params={"id": "1' OR '1'='2", "Submit": "Submit", "user_token": t2}, timeout=10)
             if r1 and r2 and abs(len(r1.text) - len(r2.text)) > 50:
                 self.findings.append({"type": "SQL Injection - Boolean Based", "url": url, "parameter": "id", "payload": "1' OR '1'='1 vs 1' OR '1'='2", "severity": "Critical", "evidence": f"Response diff: {abs(len(r1.text)-len(r2.text))} chars"})
@@ -66,6 +71,7 @@ class SQLiScanner:
             print("[SQLi] Time-based test (~3s)...")
             token = self.get_token(url)
             start = time.time()
+            stealth.wait()
             self.session.get(url, params={"id": "1' AND SLEEP(3)-- -", "Submit": "Submit", "user_token": token}, timeout=15)
             if time.time() - start >= 3:
                 self.findings.append({"type": "SQL Injection - Time Based Blind", "url": url, "parameter": "id", "payload": "1' AND SLEEP(3)-- -", "severity": "Critical", "evidence": f"Response delayed {round(time.time()-start,2)}s"})

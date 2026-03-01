@@ -14,9 +14,12 @@ from grc.compliance_mapper import ComplianceMapper
 from database.db_manager import DatabaseManager
 from reporting.report_generator import ReportGenerator
 from core.authorization import AuthorizationChecker
+from core.stealth import set_stealth, is_enabled, get_mode
+from reporting.pdf_exporter import export_pdf, find_report_for_session
 
 app = Flask(__name__)
 scan_state = {"running": False, "messages": [], "report_file": None}
+session_reports = {}   # session_id -> html report path
 
 def add_message(role, content, msg_type="text"):
     scan_state["messages"].append({
@@ -169,6 +172,8 @@ def run_scan(target_url):
         gen = ReportGenerator(session_id=session_id)
         report_file = gen.generate_html(scan_info={"target": target_url, "duration": "N/A"})
         scan_state["report_file"] = report_file
+        if report_file:
+            session_reports[session_id] = report_file
 
         critical = sum(1 for f in all_findings if f.get("severity") == "Critical")
         high     = sum(1 for f in all_findings if f.get("severity") == "High")
@@ -230,6 +235,104 @@ def download_report():
         return send_file(scan_state["report_file"], as_attachment=True,
             download_name=f"security_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
     return jsonify({"error": "No report"}), 404
+
+
+@app.route("/history")
+def history():
+    import glob
+    db = DatabaseManager()
+    raw_sessions = db.get_all_sessions()
+    sessions_data = []
+    total_findings_all = 0
+    critical_total = 0
+
+    for s in raw_sessions:
+        findings = db.get_findings_by_session(s.id)
+        sev = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
+        for f in findings:
+            if f.severity in sev:
+                sev[f.severity] += 1
+        total_findings_all += (s.total_findings or 0)
+        critical_total     += sev["Critical"]
+
+        report_path   = session_reports.get(s.id)
+        report_exists = bool(report_path and os.path.exists(report_path))
+        if not report_exists:
+            matches = glob.glob(f"reports/*session_{s.id}*.html") + glob.glob("reports/security_report_*.html")
+            if matches:
+                matches.sort(reverse=True)
+                session_reports[s.id] = matches[0]
+                report_exists = True
+
+        sessions_data.append({
+            "id":                 s.id,
+            "target_url":         s.target_url,
+            "scan_date":          s.scan_date,
+            "status":             s.status or "completed",
+            "total_findings":     s.total_findings or 0,
+            "duration_seconds":   s.duration_seconds or 0,
+            "severity_breakdown": sev,
+            "report_exists":      report_exists,
+        })
+
+    sessions_data.sort(key=lambda x: x["scan_date"] if x["scan_date"] else 0, reverse=True)
+    completed_scans = sum(1 for s in sessions_data if s["status"] == "completed")
+
+    return render_template("history.html",
+        sessions=sessions_data,
+        total_scans=len(sessions_data),
+        completed_scans=completed_scans,
+        total_findings=total_findings_all,
+        critical_total=critical_total,
+    )
+
+
+@app.route("/download_report/<int:session_id>")
+def download_report_session(session_id):
+    import glob
+    report_path = session_reports.get(session_id)
+    if not report_path or not os.path.exists(report_path):
+        matches = glob.glob(f"reports/*session_{session_id}*.html") + glob.glob("reports/security_report_*.html")
+        if matches:
+            matches.sort(reverse=True)
+            report_path = matches[0]
+    if report_path and os.path.exists(report_path):
+        return send_file(report_path, as_attachment=False, mimetype="text/html")
+    return "Report not found.", 404
+
+
+@app.route("/download_pdf/<int:session_id>")
+def download_pdf(session_id):
+    report_path = session_reports.get(session_id)
+    if not report_path or not os.path.exists(report_path):
+        report_path = find_report_for_session(session_id)
+    if not report_path or not os.path.exists(report_path):
+        return "No HTML report found for this session.", 404
+
+    pdf_path = export_pdf(report_path, session_id=session_id)
+    if pdf_path and os.path.exists(pdf_path):
+        is_pdf   = pdf_path.endswith(".pdf")
+        ext      = ".pdf" if is_pdf else ".txt"
+        mime     = "application/pdf" if is_pdf else "text/plain"
+        return send_file(pdf_path, as_attachment=True,
+                         download_name=f"security_report_session_{session_id}{ext}",
+                         mimetype=mime)
+    return "PDF generation failed. Run: pip install weasyprint", 500
+
+
+@app.route("/set_stealth", methods=["POST"])
+def toggle_stealth():
+    data    = request.json
+    enabled = bool(data.get("enabled", False))
+    mode    = data.get("mode", "stealth")
+    set_stealth(enabled, mode)
+    return jsonify({"success": True, "enabled": is_enabled(), "mode": get_mode(),
+                    "message": f"Stealth {'ENABLED' if enabled else 'DISABLED'} — {mode.upper()}"})
+
+
+@app.route("/stealth_status")
+def stealth_status():
+    return jsonify({"enabled": is_enabled(), "mode": get_mode()})
 
 if __name__ == "__main__":
     os.makedirs("templates", exist_ok=True)

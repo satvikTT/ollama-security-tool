@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from core.web_crawler import WebCrawler
 from llm.payload_generator import LLMPayloadGenerator
 from core.authorization import AuthorizationChecker
+from core.stealth import stealth
 
 class XSSScanner:
     DVWA_PATHS = ["/vulnerabilities/xss_r/", "/vulnerabilities/xss_s/"]
@@ -43,10 +44,12 @@ class XSSScanner:
             for payload in payloads:
                 if not payload: continue
                 try:
+                    stealth.wait()
                     r = self.session.get(url, timeout=10)
                     soup = BeautifulSoup(r.text, "html.parser")
                     t = soup.find("input", {"name": "user_token"})
                     token = t["value"] if t else ""
+                    stealth.wait()
                     result = self.session.get(url, params={"name": payload, "user_token": token}, timeout=10)
                     if self.check_xss(result, payload):
                         self.findings.append({"type": "XSS - Reflected", "url": url, "parameter": "name", "payload": payload, "severity": "High", "evidence": f"Payload reflected at {url}"})

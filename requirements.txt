@@ -9,3 +9,4 @@ reportlab
 matplotlib
 pyyaml
 python-nmap
+weasyprint

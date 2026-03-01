@@ -2,289 +2,327 @@
 import os
 from datetime import datetime
 from database.db_manager import DatabaseManager
+from database.models import ComplianceMapping
 
 class ReportGenerator:
-    """Generates professional HTML security assessment reports"""
+    """
+    Cyberpunk-themed HTML security report dashboard.
+    Reads findings + compliance mappings directly from SQLite via
+    DatabaseManager and the ComplianceMapping SQLAlchemy model.
+    """
 
     def __init__(self, session_id=None):
-        self.db = DatabaseManager()
         self.session_id = session_id
+        self.db = DatabaseManager()
         os.makedirs("reports", exist_ok=True)
 
-    def _get_severity_color(self, severity):
-        colors = {
-            "Critical": "#dc2626",
-            "High":     "#ea580c",
-            "Medium":   "#d97706",
-            "Low":      "#65a30d",
-        }
-        return colors.get(severity, "#6b7280")
+    def _sev_color(self, sev):
+        return {"Critical":"#ff2d55","High":"#ff9500",
+                "Medium":"#ffd60a","Low":"#00ff88"}.get(sev,"#a0f0d0")
 
-    def _get_severity_bg(self, severity):
-        colors = {
-            "Critical": "#fef2f2",
-            "High":     "#fff7ed",
-            "Medium":   "#fffbeb",
-            "Low":      "#f7fee7",
-        }
-        return colors.get(severity, "#f9fafb")
+    def _sev_glow(self, sev):
+        return {"Critical":"rgba(255,45,85,0.25)","High":"rgba(255,149,0,0.25)",
+                "Medium":"rgba(255,214,10,0.2)","Low":"rgba(0,255,136,0.15)"
+                }.get(sev,"rgba(0,255,136,0.1)")
 
-    def _count_by_severity(self, findings):
-        counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
-        for f in findings:
-            sev = f.severity if hasattr(f, 'severity') else f.get('severity', 'Low')
-            if sev in counts:
-                counts[sev] += 1
-        return counts
+    def _get_compliance(self, vuln_id, short=False):
+        """
+        Query ComplianceMapping table directly.
+        db_manager.save_compliance_mapping() stores frameworks as:
+            "owasp_top10", "iso27001", "nist_csf"
+        Returns (owasp_str, iso_str, nist_str)
+        """
+        try:
+            rows = self.db.session.query(ComplianceMapping).filter_by(
+                vulnerability_id=vuln_id
+            ).all()
+        except Exception as e:
+            print(f"[REPORT] Compliance query failed for vuln_id={vuln_id}: {e}")
+            return "—", "—", "—"
 
-    def generate_html(self, findings=None, scan_info=None):
-        """Generate a full HTML security report"""
+        owasp = iso = nist = "—"
+        for row in rows:
+            fw  = (row.framework or "").lower()
+            cid = (row.control_id   or "").strip()
+            cn  = (row.control_name or "").strip()
+            val = cid if short else (f"{cid} — {cn}" if cn else cid)
+            if not val:
+                val = "—"
+            if "owasp" in fw: owasp = val
+            if "iso"   in fw: iso   = val
+            if "nist"  in fw: nist  = val
 
-        # Load from DB if no findings passed
-        if findings is None and self.session_id:
-            findings = self.db.get_findings_by_session(self.session_id)
+        return owasp, iso, nist
 
+    def generate_html(self, scan_info=None):
+        findings  = self.db.get_findings_by_session(self.session_id)
+        target    = (scan_info or {}).get("target", "Unknown")
+        generated = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
+
+        total    = len(findings)
+        critical = sum(1 for f in findings if f.severity == "Critical")
+        high     = sum(1 for f in findings if f.severity == "High")
+        medium   = sum(1 for f in findings if f.severity == "Medium")
+        low      = sum(1 for f in findings if f.severity == "Low")
+
+        # ── Finding cards ──────────────────────────────
         if not findings:
-            print("[REPORT] No findings to report.")
-            return None
+            cards_html = '<div class="no-findings">// NO VULNERABILITIES DETECTED</div>'
+        else:
+            cards = []
+            for i, f in enumerate(findings, 1):
+                col     = self._sev_color(f.severity)
+                glow    = self._sev_glow(f.severity)
+                cvss    = str(f.cvss_score) if f.cvss_score else "N/A"
+                vector  = f.cvss_vector if f.cvss_vector else "N/A"
+                param   = f.parameter       or "—"
+                payload = f.payload         or "—"
+                evidence= f.evidence        or "—"
+                impact  = f.business_impact or "No impact analysis recorded."
+                rec     = f.recommendation  or "No recommendation recorded."
+                owasp, iso, nist = self._get_compliance(f.id)
 
-        counts = self._count_by_severity(findings)
-        total  = len(findings)
-        now    = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        target = scan_info.get("target", "Unknown") if scan_info else "DVWA Lab"
-        duration = scan_info.get("duration", "N/A") if scan_info else "N/A"
-
-        # Build findings HTML
-        findings_html = ""
-        for i, f in enumerate(findings, 1):
-            # Handle both DB objects and dicts
-            if hasattr(f, 'vuln_type'):
-                vuln_type  = f.vuln_type
-                url        = f.url
-                severity   = f.severity
-                cvss       = f.cvss_score or "N/A"
-                evidence   = f.evidence or "N/A"
-                payload    = f.payload or "N/A"
-                impact     = f.business_impact or "N/A"
-                recommend  = f.recommendation or "N/A"
-            else:
-                vuln_type  = f.get("type", "Unknown")
-                url        = f.get("url", "N/A")
-                severity   = f.get("severity", "Medium")
-                cvss       = f.get("cvss_score", "N/A")
-                evidence   = f.get("evidence", "N/A")
-                payload    = f.get("payload", f.get("detail", "N/A"))
-                impact     = f.get("business_impact", "N/A")
-                recommend  = f.get("recommendation", "N/A")
-
-            color = self._get_severity_color(severity)
-            bg    = self._get_severity_bg(severity)
-
-            findings_html += f"""
-            <div class="finding" style="border-left: 5px solid {color}; background: {bg};">
-                <div class="finding-header">
-                    <span class="finding-num">#{i}</span>
-                    <span class="finding-title">{vuln_type}</span>
-                    <span class="badge" style="background:{color};">{severity}</span>
-                    <span class="cvss">CVSS: {cvss}</span>
-                </div>
-                <div class="finding-body">
-                    <div class="finding-row"><b>URL:</b> <code>{url}</code></div>
-                    <div class="finding-row"><b>Payload/Detail:</b> <code>{payload}</code></div>
-                    <div class="finding-row"><b>Evidence:</b> {evidence}</div>
-                    <div class="finding-row impact"><b>💼 Business Impact:</b> {impact}</div>
-                    <div class="finding-row recommend"><b>🔧 Recommendation:</b> {recommend}</div>
-                </div>
+                cards.append(f"""
+      <div class="card" style="border-left-color:{col};--glow:{glow};">
+        <div class="card-head">
+          <span class="idx" style="color:{col};border-color:{col};">#{i:02d}</span>
+          <span class="vtitle">{f.vuln_type}</span>
+          <div class="badges">
+            <span class="bsev" style="color:{col};border-color:{col};box-shadow:0 0 8px {glow};">{f.severity}</span>
+            <span class="bcvss">CVSS&nbsp;{cvss}</span>
+          </div>
+        </div>
+        <div class="cvss-vector-row">
+          <span class="vector-label">// CVSS VECTOR</span>
+          <code class="vector-string">{vector}</code>
+        </div>
+        <div class="card-body">
+          <div class="frow"><span class="flabel">// URL</span><code>{f.url}</code></div>
+          <div class="frow"><span class="flabel">// PARAMETER</span><code>{param}</code></div>
+          <div class="frow"><span class="flabel">// PAYLOAD</span><code style="color:#ffd60a;">{payload}</code></div>
+          <div class="frow"><span class="flabel">// EVIDENCE</span><span class="fval">{evidence}</span></div>
+          <div class="panels">
+            <div class="panel-impact">
+              <div class="plabel" style="color:#ff9500;">⚠ BUSINESS IMPACT</div>
+              <div class="ptext">{impact}</div>
             </div>
-            """
+            <div class="panel-rec">
+              <div class="plabel" style="color:#00ff88;">✓ REMEDIATION</div>
+              <div class="ptext">{rec}</div>
+            </div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell"><span class="clabel">// OWASP TOP 10</span><span class="cval">{owasp}</span></div>
+            <div class="comp-cell"><span class="clabel">// ISO 27001</span><span class="cval">{iso}</span></div>
+            <div class="comp-cell"><span class="clabel">// NIST CSF 2.0</span><span class="cval">{nist}</span></div>
+          </div>
+        </div>
+      </div>""")
+            cards_html = "\n".join(cards)
+
+        # ── Compliance matrix table ────────────────────
+        trows = []
+        for i, f in enumerate(findings, 1):
+            col = self._sev_color(f.severity)
+            owasp, iso, nist = self._get_compliance(f.id, short=True)
+            trows.append(f"""
+          <tr>
+            <td class="tmono">#{i:02d}</td>
+            <td>{f.vuln_type}</td>
+            <td><span style="color:{col};font-weight:700;">{f.severity}</span></td>
+            <td class="tval">{owasp}</td>
+            <td class="tval">{iso}</td>
+            <td class="tval">{nist}</td>
+          </tr>""")
+        table_rows = "\n".join(trows)
+
+        bt = max(total, 1)
+        cw, hw, mw, lw = (round(x/bt*100) for x in [critical, high, medium, low])
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Security Assessment Report</title>
+<title>Security Report — {target}</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #f1f5f9; color: #1e293b; }}
+  :root{{--g:#00ff88;--c:#00e5ff;--r:#ff2d55;--o:#ff9500;--y:#ffd60a;
+    --bg:#020d0a;--bg2:#041410;--bg3:#061a15;--pn:#071f19;
+    --b1:#0a3528;--b2:#0f4a38;--tx:#a0f0d0;--tx2:#5a9980;}}
+  *{{box-sizing:border-box;margin:0;padding:0;}}
+  body{{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}}
+  body::before{{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,
+      rgba(0,255,136,0.012) 2px,rgba(0,255,136,0.012) 4px);}}
 
-  .header {{ background: linear-gradient(135deg, #1e293b, #334155);
-             color: white; padding: 40px; text-align: center; }}
-  .header h1 {{ font-size: 2.2em; margin-bottom: 8px; }}
-  .header p  {{ color: #94a3b8; font-size: 1em; }}
+  .hdr{{background:var(--bg2);border-bottom:1px solid var(--b2);padding:26px 40px;position:relative;overflow:hidden;}}
+  .hdr::after{{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--g),var(--c),var(--g),transparent);opacity:.5;}}
+  .hdr-top{{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}}
+  .hdr-badge{{font-family:'Share Tech Mono',monospace;font-size:.76em;color:var(--tx2);
+    border:1px solid var(--b2);padding:4px 12px;letter-spacing:.1em;}}
+  .hdr-title{{font-family:'Orbitron',monospace;font-size:1.6em;font-weight:900;color:var(--g);
+    text-shadow:0 0 20px rgba(0,255,136,.4);letter-spacing:.12em;text-align:center;flex:1;}}
+  .hdr-ts{{font-family:'Share Tech Mono',monospace;font-size:.74em;color:var(--tx2);
+    text-align:right;letter-spacing:.04em;line-height:1.7;}}
+  .hdr-meta{{display:flex;justify-content:center;flex-wrap:wrap;gap:28px;
+    font-family:'Share Tech Mono',monospace;font-size:.8em;color:var(--tx2);letter-spacing:.06em;}}
+  .hdr-meta span{{color:var(--c);}}
 
-  .container {{ max-width: 1100px; margin: 30px auto; padding: 0 20px; }}
+  .wrap{{max-width:1200px;margin:0 auto;padding:30px 30px 70px;}}
 
-  .meta-grid {{ display: grid; grid-template-columns: repeat(4, 1fr);
-                gap: 16px; margin-bottom: 30px; }}
-  .meta-card {{ background: white; border-radius: 10px; padding: 20px;
-                text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
-  .meta-card .num {{ font-size: 2em; font-weight: bold; }}
-  .meta-card .label {{ color: #64748b; font-size: 0.85em; margin-top: 4px; }}
+  .sec{{font-family:'Orbitron',monospace;font-size:.82em;font-weight:700;color:var(--g);
+    letter-spacing:.2em;text-transform:uppercase;margin:34px 0 16px;
+    display:flex;align-items:center;gap:12px;}}
+  .sec::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--b2),transparent);}}
 
-  .section-title {{ font-size: 1.3em; font-weight: bold; margin: 30px 0 15px;
-                    padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }}
+  .stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:10px;}}
+  .sc{{background:var(--pn);border:1px solid var(--b2);padding:22px 16px;text-align:center;position:relative;overflow:hidden;}}
+  .sc::before{{content:'';position:absolute;top:0;left:0;right:0;height:2px;}}
+  .sc.tot::before{{background:var(--c);}} .sc.crit::before{{background:var(--r);}}
+  .sc.hi::before{{background:var(--o);}} .sc.med::before{{background:var(--y);}}
+  .snum{{font-family:'Orbitron',monospace;font-size:2.7em;font-weight:900;line-height:1;margin-bottom:8px;}}
+  .slbl{{font-family:'Share Tech Mono',monospace;font-size:.73em;color:var(--tx2);letter-spacing:.12em;}}
 
-  .severity-bar {{ display: grid; grid-template-columns: repeat(4,1fr);
-                   gap: 12px; margin-bottom: 30px; }}
-  .sev-card {{ background: white; border-radius: 10px; padding: 16px;
-               text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
-  .sev-card .sev-num {{ font-size: 2.5em; font-weight: bold; }}
-  .sev-card .sev-label {{ font-size: 0.85em; color: #64748b; }}
+  .rbar{{background:var(--pn);border:1px solid var(--b2);padding:20px 24px;margin-bottom:10px;}}
+  .rlbl{{font-family:'Share Tech Mono',monospace;font-size:.74em;color:var(--tx2);letter-spacing:.1em;margin-bottom:10px;}}
+  .rtrack{{display:flex;height:10px;overflow:hidden;gap:2px;margin-bottom:14px;}}
+  .rseg{{height:100%;}}
+  .rlegend{{display:flex;gap:22px;flex-wrap:wrap;font-family:'Share Tech Mono',monospace;font-size:.76em;color:var(--tx2);}}
+  .rli{{display:flex;align-items:center;gap:7px;}}
+  .rdot{{width:9px;height:9px;border-radius:50%;}}
 
-  .finding {{ background: white; border-radius: 10px; margin-bottom: 16px;
-              padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }}
-  .finding-header {{ display: flex; align-items: center; gap: 12px;
-                     margin-bottom: 14px; flex-wrap: wrap; }}
-  .finding-num {{ background: #e2e8f0; color: #475569; border-radius: 50%;
-                  width: 28px; height: 28px; display: flex; align-items: center;
-                  justify-content: center; font-size: 0.8em; font-weight: bold; }}
-  .finding-title {{ font-weight: bold; font-size: 1.05em; flex: 1; }}
-  .badge {{ color: white; padding: 3px 12px; border-radius: 20px;
-            font-size: 0.8em; font-weight: bold; }}
-  .cvss {{ background: #1e293b; color: white; padding: 3px 12px;
-           border-radius: 20px; font-size: 0.8em; }}
+  .card{{background:var(--pn);border:1px solid var(--b2);border-left:3px solid;
+    margin-bottom:16px;transition:box-shadow .2s;}}
+  .card:hover{{box-shadow:0 0 22px var(--glow,rgba(0,255,136,.08));}}
+  .card-head{{display:flex;align-items:center;gap:14px;padding:14px 20px;
+    border-bottom:1px solid var(--b1);flex-wrap:wrap;}}
+  .idx{{font-family:'Orbitron',monospace;font-size:.72em;font-weight:700;
+    border:1px solid;padding:2px 8px;letter-spacing:.08em;flex-shrink:0;}}
+  .vtitle{{font-size:1.1em;font-weight:700;color:var(--tx);flex:1;letter-spacing:.03em;}}
+  .badges{{display:flex;gap:8px;align-items:center;flex-shrink:0;}}
+  .bsev{{font-family:'Share Tech Mono',monospace;font-size:.73em;
+    border:1px solid;padding:3px 12px;letter-spacing:.08em;font-weight:700;}}
+  .bcvss{{font-family:'Share Tech Mono',monospace;font-size:.73em;
+    color:var(--tx2);border:1px solid var(--b2);padding:3px 12px;}}
+  .cvss-vector-row{{display:flex;align-items:center;gap:12px;
+    padding:7px 20px 8px;border-bottom:1px solid var(--b1);
+    background:rgba(0,229,255,0.03);}}
+  .vector-label{{font-family:'Share Tech Mono',monospace;font-size:.65em;
+    color:#5a9980;letter-spacing:.1em;white-space:nowrap;}}
+  .vector-string{{font-family:'Share Tech Mono',monospace;font-size:.76em;
+    color:#00e5ff;letter-spacing:.03em;word-break:break-all;}}
+  .card-body{{padding:18px 20px;}}
 
-  .finding-row {{ margin-bottom: 8px; font-size: 0.92em; line-height: 1.5; }}
-  .finding-row code {{ background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
-                       font-size: 0.9em; word-break: break-all; }}
-  .impact {{ background: #fff7ed; padding: 8px 12px; border-radius: 6px; }}
-  .recommend {{ background: #f0fdf4; padding: 8px 12px; border-radius: 6px; }}
+  .frow{{display:flex;align-items:baseline;gap:12px;margin-bottom:9px;flex-wrap:wrap;}}
+  .flabel{{font-family:'Share Tech Mono',monospace;font-size:.78em;color:var(--tx2);
+    letter-spacing:.08em;flex-shrink:0;width:120px;}}
+  .frow code{{font-family:'Share Tech Mono',monospace;font-size:.88em;color:var(--c);
+    background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);
+    padding:2px 10px;word-break:break-all;flex:1;}}
+  .fval{{color:var(--tx);font-size:.95em;flex:1;line-height:1.5;}}
 
-  .compliance-table {{ width: 100%; border-collapse: collapse; background: white;
-                       border-radius: 10px; overflow: hidden;
-                       box-shadow: 0 2px 8px rgba(0,0,0,0.06); }}
-  .compliance-table th {{ background: #1e293b; color: white; padding: 12px 16px;
-                          text-align: left; font-size: 0.9em; }}
-  .compliance-table td {{ padding: 11px 16px; border-bottom: 1px solid #e2e8f0;
-                          font-size: 0.88em; }}
-  .compliance-table tr:hover td {{ background: #f8fafc; }}
+  .panels{{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 12px;}}
+  .panel-impact,.panel-rec{{padding:14px 16px;border:1px solid;}}
+  .panel-impact{{border-color:rgba(255,149,0,.3);background:rgba(255,149,0,.05);}}
+  .panel-rec{{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.04);}}
+  .plabel{{font-family:'Share Tech Mono',monospace;font-size:.67em;letter-spacing:.14em;margin-bottom:8px;}}
+  .ptext{{font-size:.96em;color:var(--tx);line-height:1.55;}}
 
-  .footer {{ text-align: center; padding: 30px; color: #94a3b8; font-size: 0.85em; }}
+  .comp-row{{display:flex;gap:8px;flex-wrap:wrap;}}
+  .comp-cell{{flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--b1);padding:10px 14px;}}
+  .clabel{{font-family:'Share Tech Mono',monospace;font-size:.65em;color:var(--tx2);
+    letter-spacing:.1em;display:block;margin-bottom:5px;}}
+  .cval{{font-family:'Share Tech Mono',monospace;font-size:.82em;color:var(--c);}}
+
+  .tbl-wrap{{border:1px solid var(--b2);overflow:hidden;}}
+  table{{width:100%;border-collapse:collapse;}}
+  th{{font-family:'Orbitron',monospace;font-size:.66em;font-weight:700;color:var(--g);
+    letter-spacing:.12em;background:var(--bg2);padding:13px 16px;text-align:left;
+    border-bottom:1px solid var(--b2);}}
+  td{{font-size:.92em;padding:11px 16px;border-bottom:1px solid var(--b1);color:var(--tx);
+    font-family:'Rajdhani',sans-serif;font-weight:500;}}
+  tr:nth-child(even) td{{background:rgba(0,255,136,.015);}}
+  tr:hover td{{background:rgba(0,229,255,.04);}}
+  .tmono{{font-family:'Share Tech Mono',monospace;color:var(--tx2);}}
+  .tval{{color:var(--c);font-family:'Share Tech Mono',monospace;font-size:.86em;}}
+
+  .no-findings{{font-family:'Share Tech Mono',monospace;color:var(--g);
+    text-align:center;padding:40px;border:1px solid var(--b2);letter-spacing:.1em;}}
+  .ftr{{text-align:center;padding:28px;border-top:1px solid var(--b1);margin-top:40px;
+    font-family:'Share Tech Mono',monospace;font-size:.74em;color:var(--tx2);
+    letter-spacing:.07em;line-height:2;}}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>🔒 Security Assessment Report</h1>
-  <p>LLM-Orchestrated Web Vulnerability Assessment with GRC Integration</p>
-  <p style="margin-top:10px;">Generated: {now} &nbsp;|&nbsp; Target: {target}</p>
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-badge">// CLASSIFIED — AUTHORIZED PERSONNEL ONLY</div>
+    <div class="hdr-title">LLM SECURITY ASSESSMENT REPORT</div>
+    <div class="hdr-ts">GENERATED<br>{generated}</div>
+  </div>
+  <div class="hdr-meta">
+    TARGET: <span>{target}</span> &nbsp;·&nbsp;
+    FINDINGS: <span>{total}</span> &nbsp;·&nbsp;
+    ENGINE: <span>OLLAMA + LLM PAYLOADS</span> &nbsp;·&nbsp;
+    FRAMEWORKS: <span>OWASP · ISO 27001 · NIST CSF</span>
+  </div>
 </div>
 
-<div class="container">
+<div class="wrap">
 
-  <!-- Meta Cards -->
-  <div class="meta-grid" style="margin-top:30px;">
-    <div class="meta-card">
-      <div class="num" style="color:#3b82f6;">{total}</div>
-      <div class="label">Total Findings</div>
+  <div class="sec">// EXECUTIVE SUMMARY</div>
+  <div class="stats">
+    <div class="sc tot"><div class="snum" style="color:var(--c);">{total}</div><div class="slbl">TOTAL FINDINGS</div></div>
+    <div class="sc crit"><div class="snum" style="color:var(--r);">{critical}</div><div class="slbl">CRITICAL</div></div>
+    <div class="sc hi"><div class="snum" style="color:var(--o);">{high}</div><div class="slbl">HIGH</div></div>
+    <div class="sc med"><div class="snum" style="color:var(--y);">{medium}</div><div class="slbl">MEDIUM / LOW</div></div>
+  </div>
+
+  <div class="rbar">
+    <div class="rlbl">// RISK DISTRIBUTION</div>
+    <div class="rtrack">
+      <div class="rseg" style="width:{cw}%;background:#ff2d55;"></div>
+      <div class="rseg" style="width:{hw}%;background:#ff9500;"></div>
+      <div class="rseg" style="width:{mw}%;background:#ffd60a;"></div>
+      <div class="rseg" style="width:{lw}%;background:#00ff88;"></div>
     </div>
-    <div class="meta-card">
-      <div class="num" style="color:#dc2626;">{counts['Critical']}</div>
-      <div class="label">Critical</div>
-    </div>
-    <div class="meta-card">
-      <div class="num" style="color:#ea580c;">{counts['High']}</div>
-      <div class="label">High</div>
-    </div>
-    <div class="meta-card">
-      <div class="num" style="color:#6b7280;">{duration}s</div>
-      <div class="label">Scan Duration</div>
+    <div class="rlegend">
+      <div class="rli"><div class="rdot" style="background:#ff2d55;"></div>CRITICAL ({critical})</div>
+      <div class="rli"><div class="rdot" style="background:#ff9500;"></div>HIGH ({high})</div>
+      <div class="rli"><div class="rdot" style="background:#ffd60a;"></div>MEDIUM ({medium})</div>
+      <div class="rli"><div class="rdot" style="background:#00ff88;"></div>LOW ({low})</div>
     </div>
   </div>
 
-  <!-- Severity Breakdown -->
-  <div class="section-title">📊 Severity Breakdown</div>
-  <div class="severity-bar">
-    <div class="sev-card">
-      <div class="sev-num" style="color:#dc2626;">{counts['Critical']}</div>
-      <div class="sev-label">Critical</div>
-    </div>
-    <div class="sev-card">
-      <div class="sev-num" style="color:#ea580c;">{counts['High']}</div>
-      <div class="sev-label">High</div>
-    </div>
-    <div class="sev-card">
-      <div class="sev-num" style="color:#d97706;">{counts['Medium']}</div>
-      <div class="sev-label">Medium</div>
-    </div>
-    <div class="sev-card">
-      <div class="sev-num" style="color:#65a30d;">{counts['Low']}</div>
-      <div class="sev-label">Low</div>
-    </div>
+  <div class="sec">// VULNERABILITY FINDINGS</div>
+  {cards_html}
+
+  <div class="sec">// COMPLIANCE MAPPING MATRIX</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>VULNERABILITY</th><th>SEVERITY</th>
+        <th>OWASP TOP 10</th><th>ISO 27001</th><th>NIST CSF 2.0</th>
+      </tr></thead>
+      <tbody>{table_rows}</tbody>
+    </table>
   </div>
 
-  <!-- Findings -->
-  <div class="section-title">🔍 Vulnerability Findings</div>
-  {findings_html}
-
-  <!-- Compliance Table -->
-  <div class="section-title">📋 Compliance Framework Mapping</div>
-  <table class="compliance-table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Vulnerability</th>
-        <th>Severity</th>
-        <th>OWASP Top 10</th>
-        <th>ISO 27001</th>
-        <th>NIST CSF</th>
-      </tr>
-    </thead>
-    <tbody>
-"""
-
-        # Build compliance table rows
-        from grc.compliance_mapper import ComplianceMapper
-        mapper = ComplianceMapper()
-
-        for i, f in enumerate(findings, 1):
-            if hasattr(f, 'vuln_type'):
-                finding_dict = {"type": f.vuln_type, "severity": f.severity}
-            else:
-                finding_dict = f
-
-            mapping = mapper.map_finding(finding_dict)
-            severity = finding_dict.get("severity") if isinstance(finding_dict, dict) else f.severity
-            color = self._get_severity_color(severity)
-
-            owasp = mapping.get("owasp_top10")
-            iso   = mapping.get("iso27001")
-            nist  = mapping.get("nist_csf")
-
-            owasp_text = f"{owasp['id']} - {owasp['name']}" if owasp else "N/A"
-            iso_text   = f"{iso['control_id']} - {iso['control_name']}" if iso else "N/A"
-            nist_text  = f"{nist['function']} > {nist['category_name']}" if nist else "N/A"
-
-            vuln_name = finding_dict.get("type") if isinstance(finding_dict, dict) else f.vuln_type
-
-            html += f"""
-      <tr>
-        <td>{i}</td>
-        <td>{vuln_name}</td>
-        <td><span style="color:{color};font-weight:bold;">{severity}</span></td>
-        <td>{owasp_text}</td>
-        <td>{iso_text}</td>
-        <td>{nist_text}</td>
-      </tr>"""
-
-        html += """
-    </tbody>
-  </table>
-
-  <div class="footer" style="margin-top:40px;">
-    <p>Generated by LLM-Orchestrated Security Assessment Tool</p>
-    <p>⚠️ This report is for authorized security testing only. Handle with confidentiality.</p>
+  <div class="ftr">
+    <div>GENERATED BY LLM-ORCHESTRATED SECURITY ASSESSMENT TOOL v1.0</div>
+    <div style="color:#ff2d55;">⚠ SENSITIVE SECURITY DATA — HANDLE WITH STRICT CONFIDENTIALITY</div>
+    <div>AUTHORIZED PENETRATION TESTING ONLY — UNAUTHORIZED USE IS PROHIBITED</div>
   </div>
 
 </div>
 </body>
 </html>"""
 
-        # Save report
         filename = f"reports/security_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(html)
-
+        with open(filename, "w", encoding="utf-8") as fh:
+            fh.write(html)
         print(f"[REPORT] ✅ Report saved: {filename}")
         return filename

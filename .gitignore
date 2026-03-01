@@ -1,0 +1,70 @@
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# ── Virtual Environments ──────────────────────────────────────────
+venv/
+env/
+.env/
+.venv/
+ENV/
+
+# ── Database ──────────────────────────────────────────────────────
+# Never commit the live database — it contains scan data
+database/security_tool.db
+database/*.db
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Generated Reports ─────────────────────────────────────────────
+# Reports contain potentially sensitive target data
+reports/
+*.pdf
+
+# ── Environment / Secrets ─────────────────────────────────────────
+.env
+.env.local
+.env.production
+config.ini
+secrets.py
+
+# ── IDE / Editor ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+
+# ── Ollama / LLM Cache ────────────────────────────────────────────
+.ollama/
+model_cache/
+
+# ── Pytest / Coverage ─────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/

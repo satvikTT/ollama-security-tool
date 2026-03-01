@@ -3,263 +3,660 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🔒 LLM Security Tool</title>
+<title>LLM Security Assessment Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --green:   #00ff88;
+    --green2:  #00cc66;
+    --cyan:    #00e5ff;
+    --red:     #ff2d55;
+    --orange:  #ff9500;
+    --bg:      #020d0a;
+    --bg2:     #041410;
+    --bg3:     #061a15;
+    --panel:   #071f19;
+    --border:  #0a3528;
+    --border2: #0f4a38;
+    --text:    #a0f0d0;
+    --text2:   #5a9980;
+    --glow:    0 0 20px rgba(0,255,136,0.15);
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: #0f172a;
-    color: #e2e8f0;
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
     height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    cursor: default;
   }
 
-  /* Header */
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,136,0.015) 2px,
+      rgba(0,255,136,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Corner decorations */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 10% 10%, rgba(0,255,136,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 90%, rgba(0,229,255,0.03) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── HEADER ───────────────────────────────────────── */
   .header {
-    background: linear-gradient(135deg, #1e293b, #334155);
-    padding: 16px 24px;
+    position: relative;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border2);
+    padding: 0 28px;
+    height: 72px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid #334155;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  }
-  .header-icon { font-size: 1.8em; }
-  .header-title { font-size: 1.2em; font-weight: bold; color: #f1f5f9; }
-  .header-sub { font-size: 0.78em; color: #94a3b8; }
-  .status-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: #22c55e; margin-left: auto;
-    box-shadow: 0 0 8px #22c55e;
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
   }
 
-  /* Chat area */
-  .chat-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
+  .header::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), var(--cyan), var(--green), transparent);
+    opacity: 0.6;
+  }
+
+  /* Animated corner brackets */
+  .header-corner {
+    position: absolute;
+    width: 18px; height: 18px;
+  }
+  .header-corner.tl { top: 8px; left: 8px; border-top: 2px solid var(--green); border-left: 2px solid var(--green); }
+  .header-corner.tr { top: 8px; right: 8px; border-top: 2px solid var(--green); border-right: 2px solid var(--green); }
+  .header-corner.bl { bottom: 8px; left: 8px; border-bottom: 2px solid var(--green); border-left: 2px solid var(--green); }
+  .header-corner.br { bottom: 8px; right: 8px; border-bottom: 2px solid var(--green); border-right: 2px solid var(--green); }
+
+  .header-center { text-align: center; }
+
+  .header-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.55em;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    color: var(--green);
+    text-shadow: 0 0 20px rgba(0,255,136,0.5), 0 0 40px rgba(0,255,136,0.2);
+    text-transform: uppercase;
+  }
+
+  .header-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.82em;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    margin-top: 3px;
+  }
+
+  /* Status indicators */
+  .header-status {
+    position: absolute;
+    right: 28px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 16px;
   }
 
-  /* Welcome message */
-  .welcome {
-    background: linear-gradient(135deg, #1e3a5f, #1e293b);
-    border: 1px solid #3b82f6;
-    border-radius: 16px;
-    padding: 24px;
-    text-align: center;
-  }
-  .welcome h2 { color: #60a5fa; margin-bottom: 8px; font-size: 1.3em; }
-  .welcome p  { color: #94a3b8; font-size: 0.9em; line-height: 1.6; }
-  .welcome .example {
-    background: #0f172a;
-    border-radius: 8px;
-    padding: 10px 16px;
-    margin-top: 12px;
-    font-family: monospace;
-    color: #34d399;
-    font-size: 0.9em;
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.82em;
+    color: var(--text2);
+    letter-spacing: 0.05em;
   }
 
-  /* Messages */
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 2s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Left badge */
+  .header-badge {
+    position: absolute;
+    left: 28px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.76em;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    border: 1px solid var(--border2);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+
+  /* ── CHAT AREA ────────────────────────────────────── */
+  .chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+  }
+
+  .chat-container::-webkit-scrollbar { width: 4px; }
+  .chat-container::-webkit-scrollbar-track { background: transparent; }
+  .chat-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── WELCOME CARD ─────────────────────────────────── */
+  .welcome {
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 28px 32px;
+    position: relative;
+    background: var(--panel);
+    overflow: hidden;
+    animation: fadeIn 0.6s ease;
+  }
+
+  .welcome::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+  }
+
+  .welcome-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .welcome-stat {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 3px;
+    background: var(--bg3);
+  }
+
+  .welcome-stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75em;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .welcome-stat-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.92em;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .welcome h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+  }
+
+  .welcome p {
+    font-size: 1.05em;
+    color: var(--text2);
+    line-height: 1.7;
+    font-weight: 400;
+    text-align: center;
+  }
+
+  .welcome .example {
+    font-family: 'Share Tech Mono', monospace;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-left: 3px solid var(--green);
+    padding: 10px 16px;
+    margin-top: 14px;
+    font-size: 0.78em;
+    color: var(--green);
+    letter-spacing: 0.05em;
+  }
+
+  .welcome .example span { color: var(--cyan); }
+
+  /* ── MESSAGES ─────────────────────────────────────── */
   .message {
     display: flex;
     gap: 12px;
     animation: fadeIn 0.3s ease;
+    max-width: 88%;
   }
+
+  .message.user {
+    flex-direction: row-reverse;
+    align-self: flex-end;
+  }
+
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .message.user { flex-direction: row-reverse; }
 
+  /* Avatars */
   .avatar {
     width: 36px; height: 36px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.1em; flex-shrink: 0;
+    border-radius: 3px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid var(--border2);
+    position: relative;
   }
-  .avatar.bot  { background: linear-gradient(135deg, #3b82f6, #6366f1); }
-  .avatar.user { background: linear-gradient(135deg, #22c55e, #16a34a); }
 
+  .avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  /* Fallback if no image */
+  .avatar-fallback {
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7em;
+    font-weight: 700;
+  }
+
+  .avatar.bot { border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.15); }
+  .avatar.bot .avatar-fallback { background: var(--bg3); color: var(--green); }
+  .avatar.user { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,229,255,0.15); }
+  .avatar.user .avatar-fallback { background: var(--bg3); color: var(--cyan); }
+
+  /* Bubbles */
   .bubble {
-    max-width: 75%;
-    padding: 12px 16px;
-    border-radius: 16px;
-    font-size: 0.92em;
-    line-height: 1.6;
+    padding: 12px 18px;
+    border-radius: 3px;
+    font-size: 1em;
+    line-height: 1.7;
     white-space: pre-wrap;
     word-break: break-word;
+    position: relative;
   }
+
   .bubble.bot {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-top-left-radius: 4px;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    border-top-left-radius: 0;
   }
+
   .bubble.user {
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: white;
-    border-top-right-radius: 4px;
+    background: linear-gradient(135deg, #021f18, #031a13);
+    border: 1px solid rgba(0,229,255,0.3);
+    color: var(--cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.95em;
+    border-top-right-radius: 0;
   }
+
   .bubble.warning {
-    background: #431407;
-    border: 1px solid #ea580c;
-    color: #fed7aa;
+    background: rgba(255,149,0,0.08);
+    border: 1px solid rgba(243, 10, 45, 0.412);
+    color: #f10a21;
   }
+
   .bubble.finding {
-    background: #1c1917;
-    border: 1px solid #57534e;
-    color: #d6d3d1;
-    font-family: monospace;
-    font-size: 0.85em;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--text2);
+    color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9em;
   }
+
   .bubble.summary {
-    background: linear-gradient(135deg, #052e16, #14532d);
-    border: 1px solid #22c55e;
-    color: #bbf7d0;
+    background: rgba(0,255,136,0.04);
+    border: 1px solid rgba(0,255,136,0.3);
+    color: var(--text);
+    border-left: 3px solid var(--green);
   }
+
   .bubble.error {
-    background: #450a0a;
-    border: 1px solid #dc2626;
-    color: #fca5a5;
+    background: rgba(255,45,85,0.08);
+    border: 1px solid rgba(255,45,85,0.3);
+    color: #ff6b85;
   }
 
   /* Report button */
   .report-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 0.95em;
-    font-weight: bold;
-    cursor: pointer;
+    gap: 10px;
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 13px 28px;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85em;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-decoration: none;
+    cursor: pointer;
+    border-radius: 2px;
     transition: all 0.2s;
-    box-shadow: 0 4px 15px rgba(59,130,246,0.4);
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
   }
-  .report-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59,130,246,0.5);
+
+  .report-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--green);
+    opacity: 0;
+    transition: opacity 0.2s;
   }
+
+  .report-btn:hover { box-shadow: 0 0 20px rgba(0,255,136,0.3); color: var(--bg); }
+  .report-btn:hover::before { opacity: 1; }
+  .report-btn span { position: relative; z-index: 1; }
 
   /* Typing indicator */
   .typing {
     display: flex;
-    gap: 4px;
+    gap: 5px;
     align-items: center;
-    padding: 12px 16px;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 16px;
-    border-top-left-radius: 4px;
+    padding: 13px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    border-top-left-radius: 0;
     width: fit-content;
   }
+
   .typing span {
-    width: 8px; height: 8px;
-    background: #64748b;
+    width: 6px; height: 6px;
+    background: var(--green);
     border-radius: 50%;
-    animation: bounce 1.2s infinite;
+    animation: typingBounce 1.2s infinite;
+    box-shadow: 0 0 6px var(--green);
   }
   .typing span:nth-child(2) { animation-delay: 0.2s; }
   .typing span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); background: #3b82f6; }
+
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-5px); opacity: 1; }
   }
 
-  /* Input area */
+  /* ── INPUT AREA ───────────────────────────────────── */
   .input-area {
-    background: #1e293b;
-    border-top: 1px solid #334155;
-    padding: 16px 24px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border2);
+    padding: 14px 28px 16px;
+    flex-shrink: 0;
+    position: relative;
   }
+
+  .input-area::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    opacity: 0.3;
+  }
+
   .input-row {
     display: flex;
-    gap: 12px;
-    max-width: 900px;
-    margin: 0 auto;
+    gap: 10px;
+    align-items: center;
   }
+
+  /* Terminal-style prompt */
+  .input-prompt {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85em;
+    color: var(--green);
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+
   .url-input {
     flex: 1;
-    background: #0f172a;
-    border: 1px solid #334155;
-    color: #e2e8f0;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 0.95em;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--green);
+    padding: 11px 18px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1em;
     outline: none;
-    transition: border-color 0.2s;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    caret-color: var(--green);
   }
-  .url-input:focus { border-color: #3b82f6; }
-  .url-input::placeholder { color: #475569; }
+
+  .url-input:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 12px rgba(0,255,136,0.1);
+  }
+
+  .url-input::placeholder { color: var(--text2); opacity: 0.5; }
 
   .scan-btn {
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 0.95em;
-    font-weight: bold;
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 11px 26px;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     cursor: pointer;
+    border-radius: 2px;
+    text-transform: uppercase;
     transition: all 0.2s;
     white-space: nowrap;
+    position: relative;
+    overflow: hidden;
   }
+
+  .scan-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--green);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .scan-btn span { position: relative; z-index: 1; }
+
   .scan-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(59,130,246,0.4);
+    box-shadow: 0 0 18px rgba(0,255,136,0.35);
+    color: var(--bg);
   }
+
+  .scan-btn:hover:not(:disabled)::before { opacity: 1; }
+
   .scan-btn:disabled {
-    background: #334155;
+    border-color: var(--border2);
+    color: var(--text2);
     cursor: not-allowed;
-    transform: none;
   }
 
-  .hint {
-    text-align: center;
-    color: #475569;
+  /* Disclaimer */
+  .disclaimer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-family: 'Share Tech Mono', monospace;
     font-size: 0.78em;
-    margin-top: 8px;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    opacity: 0.8;
+    text-align: center;
   }
 
-  /* Scrollbar */
-  .chat-container::-webkit-scrollbar { width: 6px; }
-  .chat-container::-webkit-scrollbar-track { background: #0f172a; }
-  .chat-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  .disclaimer::before {
+    content: '//';
+    color: var(--orange);
+    font-size: 1em;
+    opacity: 0.7;
+  }
+
+  /* ── STEALTH BAR ── */
+  .stealth-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 10px; padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: rgba(0,255,136,0.02);
+    flex-wrap: wrap;
+  }
+  .stealth-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72em; color: var(--text2);
+    letter-spacing: .1em; white-space: nowrap;
+  }
+  .stealth-toggle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72em; letter-spacing: .12em;
+    color: var(--text2); border: 1px solid var(--border);
+    background: transparent; padding: 3px 14px;
+    cursor: pointer; transition: all .2s;
+  }
+  .stealth-toggle.on {
+    color: var(--green); border-color: var(--green);
+    box-shadow: 0 0 10px rgba(0,255,136,0.2);
+  }
+  .stealth-sep {
+    color: var(--border);
+    font-family: 'Share Tech Mono', monospace; font-size: 0.8em;
+  }
+  .stealth-select {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text2); padding: 3px 10px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.72em;
+    outline: none; cursor: pointer; transition: border-color .2s;
+  }
+  .stealth-select:focus { border-color: var(--green); }
+  .stealth-info {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68em; color: var(--text2);
+    letter-spacing: .06em; opacity: .6;
+  }
+  .stealth-info.on { color: var(--green); opacity: 1; }
+
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); }
+
+  /* Glitch animation for title */
+  @keyframes glitch {
+    0%, 95%, 100% { text-shadow: 0 0 20px rgba(0,255,136,0.5), 0 0 40px rgba(0,255,136,0.2); }
+    96% { text-shadow: -2px 0 var(--red), 2px 0 var(--cyan); letter-spacing: 0.2em; }
+    98% { text-shadow: 2px 0 var(--red), -2px 0 var(--cyan); letter-spacing: 0.16em; }
+  }
+
+  .header-title { animation: glitch 8s infinite; }
+
 </style>
 </head>
 <body>
 
 <!-- Header -->
 <div class="header">
-  <div class="header-icon">🔒</div>
-  <div>
+  <div class="header-corner tl"></div>
+  <div class="header-corner tr"></div>
+  <div class="header-corner bl"></div>
+  <div class="header-corner br"></div>
+
+  <div class="header-badge">v1.0.0 // STABLE</div>
+
+  <div class="header-center">
     <div class="header-title">LLM Security Assessment Tool</div>
-    <div class="header-sub">Powered by Ollama • XSS • SQLi • CMDi • Misconfig • GRC</div>
+    <div class="header-sub">AI-POWERED VULNERABILITY ASSESSMENT &nbsp;·&nbsp; XSS &nbsp;·&nbsp; SQLi &nbsp;·&nbsp; CMDi &nbsp;·&nbsp; GRC</div>
   </div>
-  <div class="status-dot" title="System Online"></div>
+
+  <div class="header-status">
+    <a href="/history" style="
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72em; letter-spacing: .1em;
+      color: #5a9980; border: 1px solid #0f4a38;
+      padding: 5px 16px; text-decoration: none;
+      margin-right: 12px;
+      transition: all .2s;
+    " onmouseover="this.style.color='#00ff88';this.style.borderColor='#00ff88';"
+       onmouseout="this.style.color='#5a9980';this.style.borderColor='#0f4a38';">
+      // HISTORY
+    </a>
+    <div class="status-indicator">
+      <div class="status-dot"></div>
+      OLLAMA ONLINE
+    </div>
+  </div>
 </div>
 
 <!-- Chat -->
 <div class="chat-container" id="chatContainer">
   <div class="welcome">
-    <h2>🛡️ Welcome to LLM Security Tool</h2>
-    <p>Enter a target URL below to start an automated vulnerability assessment.<br>
-    The tool will scan for XSS, SQL Injection, Command Injection, and Misconfigurations<br>
-    and map findings to OWASP Top 10, ISO 27001, and NIST CSF frameworks.</p>
-    <div class="example">Try: http://localhost/dvwa</div>
+    <h2>// SYSTEM INITIALIZED — READY FOR TARGET ACQUISITION</h2>
+    <p>
+      Enter a target URL below to initiate an automated security assessment.<br>
+      SENTINEL will crawl, enumerate, and test for critical web vulnerabilities —<br>
+      then map all findings to OWASP Top 10, ISO 27001, and NIST CSF frameworks.
+    </p>
+    <div class="welcome-grid">
+      <div class="welcome-stat">
+        <div class="welcome-stat-label">// SCAN MODULES</div>
+        <div class="welcome-stat-val">04 ACTIVE</div>
+      </div>
+      <div class="welcome-stat">
+        <div class="welcome-stat-label">// PAYLOAD ENGINE</div>
+        <div class="welcome-stat-val">LLM + STATIC</div>
+      </div>
+      <div class="welcome-stat">
+        <div class="welcome-stat-label">// FRAMEWORKS</div>
+        <div class="welcome-stat-val">OWASP · ISO · NIST</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -270,14 +667,32 @@
       type="text"
       class="url-input"
       id="urlInput"
-      placeholder="Enter target URL (e.g. http://localhost/dvwa)"
+      placeholder="enter target url  (e.g. http://testphp.vulnweb.com)"
       autocomplete="off"
+      spellcheck="false"
     />
     <button class="scan-btn" id="scanBtn" onclick="startScan()">
-      🔍 Scan
+      <span>INITIATE SCAN</span>
     </button>
   </div>
-  <div class="hint">⚠️ Only scan systems you own or have explicit written permission to test.</div>
+
+  <!-- STEALTH MODE TOGGLE -->
+  <div class="stealth-bar" id="stealthBar">
+    <span class="stealth-label">// STEALTH MODE</span>
+    <button class="stealth-toggle" id="stealthToggle" onclick="toggleStealth()">OFF</button>
+    <span class="stealth-sep">|</span>
+    <span class="stealth-label">PROFILE:</span>
+    <select class="stealth-select" id="stealthMode" onchange="updateStealth()">
+      <option value="normal">NORMAL  (0.1–0.4s)</option>
+      <option value="stealth" selected>STEALTH  (0.8–2.5s)</option>
+      <option value="aggressive">AGGRESSIVE  (3–7s)</option>
+    </select>
+    <span class="stealth-info" id="stealthInfo">— delays disabled</span>
+  </div>
+
+  <div class="disclaimer">
+    AUTHORIZED USE ONLY — Only assess systems you own or have explicit written permission to test. Unauthorized scanning is illegal.
+  </div>
 </div>
 
 <script>
@@ -286,8 +701,6 @@
 
   function addMessage(role, content, type) {
     const container = document.getElementById("chatContainer");
-
-    // Remove typing indicator if exists
     const typing = document.getElementById("typingIndicator");
     if (typing) typing.remove();
 
@@ -296,23 +709,37 @@
 
     const avatar = document.createElement("div");
     avatar.className = `avatar ${role}`;
-    avatar.textContent = role === "bot" ? "🤖" : "👤";
+
+    // Try to load custom image, fallback to text
+    const img = document.createElement("img");
+    if (role === "bot") {
+      img.src = "/static/image2.jpg";
+      img.onerror = () => {
+        avatar.innerHTML = '<div class="avatar-fallback">AI</div>';
+      };
+    } else {
+      img.src = "/static/image1.jpg";
+      img.onerror = () => {
+        avatar.innerHTML = '<div class="avatar-fallback">YOU</div>';
+      };
+    }
+    avatar.appendChild(img);
 
     const bubble = document.createElement("div");
-    bubble.className = `bubble ${role === "bot" ? (type || "bot") : "user"}`;
+    const bubbleClass = role === "bot" ? (type || "bot") : "user";
+    bubble.className = `bubble ${bubbleClass}`;
 
-    // Handle report link
     if (content === "REPORT_READY") {
       const btn = document.createElement("a");
       btn.href = "/download_report";
       btn.className = "report-btn";
-      btn.innerHTML = "📄 Download Full HTML Report";
       btn.target = "_blank";
+      btn.innerHTML = '<span>⬇ DOWNLOAD FULL SECURITY REPORT</span>';
       bubble.appendChild(btn);
     } else {
-      // Handle bold markdown **text**
-      bubble.innerHTML = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                                .replace(/`(.*?)`/g, "<code style='background:#0f172a;padding:2px 6px;border-radius:4px;font-family:monospace;'>$1</code>");
+      bubble.innerHTML = content
+        .replace(/\*\*(.*?)\*\*/g, "<strong style='color:#00ff88'>$1</strong>")
+        .replace(/`(.*?)`/g, "<code style='font-family:Share Tech Mono,monospace;color:#00e5ff;background:rgba(0,229,255,0.08);padding:1px 5px;border-radius:2px'>$1</code>");
     }
 
     msgDiv.appendChild(avatar);
@@ -326,46 +753,57 @@
     const div = document.createElement("div");
     div.className = "message bot";
     div.id = "typingIndicator";
-    div.innerHTML = `
-      <div class="avatar bot">🤖</div>
-      <div class="typing">
-        <span></span><span></span><span></span>
-      </div>`;
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar bot";
+    const img = document.createElement("img");
+    img.src = "/static/image2.png";
+    img.onerror = () => { avatar.innerHTML = '<div class="avatar-fallback">AI</div>'; };
+    avatar.appendChild(img);
+
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = '<span></span><span></span><span></span>';
+
+    div.appendChild(avatar);
+    div.appendChild(typing);
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
   }
 
   function startScan() {
     const input = document.getElementById("urlInput");
-    const btn = document.getElementById("scanBtn");
+    const btn   = document.getElementById("scanBtn");
     const target = input.value.trim();
 
     if (!target) {
-      alert("Please enter a target URL first!");
+      input.style.borderColor = '#ff2d55';
+      input.style.boxShadow = '0 0 12px rgba(255,45,85,0.2)';
+      setTimeout(() => {
+        input.style.borderColor = '';
+        input.style.boxShadow = '';
+      }, 1500);
       return;
     }
 
-    // Disable button
     btn.disabled = true;
-    btn.textContent = "⏳ Scanning...";
+    btn.querySelector("span").textContent = "SCANNING...";
     lastCount = 0;
 
-    // Start scan
     fetch("/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target: target })
+      body: JSON.stringify({ target })
     })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
         alert(data.error);
         btn.disabled = false;
-        btn.textContent = "🔍 Scan";
+        btn.querySelector("span").textContent = "INITIATE SCAN";
         return;
       }
       showTyping();
-      // Start polling for messages
       polling = setInterval(pollMessages, 1000);
     });
 
@@ -377,32 +815,62 @@
     .then(r => r.json())
     .then(data => {
       const messages = data.messages;
-
-      // Add new messages
       for (let i = lastCount; i < messages.length; i++) {
         const msg = messages[i];
-        if (msg.role !== "user" || i >= lastCount) {
-          addMessage(msg.role, msg.content, msg.type);
-        }
+        addMessage(msg.role, msg.content, msg.type);
       }
       lastCount = messages.length;
 
-      // Stop polling when scan is done
       if (!data.running && lastCount > 0) {
         clearInterval(polling);
         polling = null;
-
         const btn = document.getElementById("scanBtn");
         btn.disabled = false;
-        btn.textContent = "🔍 Scan";
+        btn.querySelector("span").textContent = "INITIATE SCAN";
       }
     });
   }
 
-  // Allow Enter key to start scan
-  document.getElementById("urlInput").addEventListener("keypress", function(e) {
+  document.getElementById("urlInput").addEventListener("keypress", e => {
     if (e.key === "Enter") startScan();
   });
+
+  // ── STEALTH MODE ──────────────────────────────────────────────
+  let stealthEnabled = false;
+
+  function toggleStealth() {
+    stealthEnabled = !stealthEnabled;
+    updateStealth();
+  }
+
+  function updateStealth() {
+    const mode   = document.getElementById("stealthMode").value;
+    const btn    = document.getElementById("stealthToggle");
+    const info   = document.getElementById("stealthInfo");
+    const bar    = document.getElementById("stealthBar");
+
+    btn.textContent = stealthEnabled ? "ON" : "OFF";
+    btn.classList.toggle("on", stealthEnabled);
+    info.classList.toggle("on", stealthEnabled);
+
+    const profiles = {
+      "normal":     "0.1–0.4s delay per request",
+      "stealth":    "0.8–2.5s delay per request",
+      "aggressive": "3–7s delay per request"
+    };
+
+    info.textContent = stealthEnabled
+      ? `— active: ${profiles[mode]}`
+      : "— delays disabled";
+
+    bar.style.borderColor = stealthEnabled ? "rgba(0,255,136,0.3)" : "";
+
+    fetch("/set_stealth", {
+      method:  "POST",
+      headers: {"Content-Type": "application/json"},
+      body:    JSON.stringify({ enabled: stealthEnabled, mode })
+    });
+  }
 </script>
 
 </body>

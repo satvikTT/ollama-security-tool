@@ -2,6 +2,7 @@
 import requests
 from bs4 import BeautifulSoup
 from core.authorization import AuthorizationChecker
+from core.stealth import stealth
 
 class MisconfigScanner:
     """Misconfiguration and security header vulnerability scanner"""
@@ -67,6 +68,7 @@ class MisconfigScanner:
         """Check for missing security headers"""
         print("[Misconfig] --- Checking Security Headers ---")
         try:
+            stealth.wait()
             response = self.session.get(self.target_url, timeout=10)
             headers = response.headers
 
@@ -94,6 +96,7 @@ class MisconfigScanner:
         for path in self.sensitive_files:
             url = self.base_url + path
             try:
+                stealth.wait()
                 response = self.session.get(url, timeout=8, allow_redirects=False)
 
                 # File exists and is accessible
@@ -129,6 +132,7 @@ class MisconfigScanner:
         for path in dirs_to_check:
             url = self.base_url + path
             try:
+                stealth.wait()
                 response = self.session.get(url, timeout=8)
                 text_lower = response.text.lower()
 
@@ -155,6 +159,7 @@ class MisconfigScanner:
         """Check for server information disclosure"""
         print("\n[Misconfig] --- Checking Server Information Disclosure ---")
         try:
+            stealth.wait()
             response = self.session.get(self.target_url, timeout=10)
             headers = response.headers
 
